@@ -329,6 +329,49 @@
   let currentTab = 'transcript';
   let finalBuffer = '';
 
+  // Wake lock — keeps screen on while recording so iOS doesn't suspend the app
+  let wakeLock = null;
+  let noSleepAudioCtx = null;
+  let noSleepTimer = null;
+
+  async function enableWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', function() { wakeLock = null; });
+        return;
+      } catch (e) {}
+    }
+    // Fallback: play a silent audio buffer every 5 s — prevents iOS from suspending the page
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      noSleepAudioCtx = new AC();
+      function tick() {
+        const buf = noSleepAudioCtx.createBuffer(1, 1, 22050);
+        const src = noSleepAudioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(noSleepAudioCtx.destination);
+        src.start(0);
+        noSleepTimer = setTimeout(tick, 5000);
+      }
+      tick();
+    } catch (e) {}
+  }
+
+  function disableWakeLock() {
+    if (wakeLock) { try { wakeLock.release(); } catch(e) {} wakeLock = null; }
+    if (noSleepTimer) { clearTimeout(noSleepTimer); noSleepTimer = null; }
+    if (noSleepAudioCtx) { try { noSleepAudioCtx.close(); } catch(e) {} noSleepAudioCtx = null; }
+  }
+
+  // Re-acquire wake lock if it was released (e.g. tab briefly hidden then foregrounded)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && phase === 'recording' && !wakeLock) {
+      enableWakeLock();
+    }
+  });
+
   const COLORS = ['#a78bfa','#34d399','#f472b6','#60a5fa','#fbbf24','#fb923c'];
 
   function saveApiKey() {
@@ -437,6 +480,7 @@
     updateStatus();
     updateGlow();
     updateRecordBtn();
+    enableWakeLock();
 
     timerInterval = setInterval(function() { elapsed++; updateStatus(); }, 1000);
 
@@ -509,6 +553,7 @@
   function stopRecording() {
     if (recognition) { try { recognition.stop(); } catch(e) {} }
     clearInterval(timerInterval);
+    disableWakeLock();
     if (finalBuffer.trim()) {
       addSegment(finalBuffer.trim(), formatTime(elapsed));
       finalBuffer = '';

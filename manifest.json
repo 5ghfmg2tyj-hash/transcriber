@@ -1,0 +1,10 @@
+{
+  "name": "Meeting Transcriber",
+  "short_name": "Transcriber",
+  "description": "Record, transcribe, and summarize meetings",
+  "start_url": "./Transcriber.html",
+  "display": "standalone",
+  "background_color": "#09090f",
+  "theme_color": "#09090f",
+  "orientation": "portrait"
+}

@@ -36,23 +36,31 @@ html, body {
 /* Ambient glow */
 #glow { position: fixed; inset: 0; pointer-events: none; z-index: 0; transition: background 1s ease; }
 
-/* API Key screen */
-#apiScreen {
+/* Setup screen */
+#setupScreen {
   position: fixed; inset: 0; z-index: 200; background: var(--bg);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 32px 28px; gap: 20px;
+  padding: 32px 28px; gap: 16px;
 }
-#apiScreen .icon { font-size: 52px; }
-#apiScreen h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; text-align: center; }
-#apiScreen p { font-size: 14px; color: var(--muted); text-align: center; line-height: 1.6; max-width: 280px; }
-#apiScreen input {
+#setupScreen .icon { font-size: 52px; }
+#setupScreen h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; text-align: center; }
+#setupScreen > p { font-size: 14px; color: var(--muted); text-align: center; line-height: 1.6; max-width: 280px; }
+#setupProviderPills { display: flex; gap: 8px; width: 100%; }
+.setup-pill {
+  flex: 1; padding: 10px 4px; border: 1px solid var(--border); background: var(--surface);
+  border-radius: 10px; color: var(--muted); font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: -apple-system, sans-serif; transition: all 0.2s;
+}
+.setup-pill.active { border-color: var(--accent); color: var(--text); background: rgba(99,102,241,0.08); }
+#setupProviderInfo { font-size: 12px; color: var(--muted); }
+#setupScreen input {
   width: 100%; padding: 14px 16px;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 14px; color: var(--text); font-size: 14px;
   outline: none; font-family: monospace; letter-spacing: 0.5px;
 }
-#apiScreen input:focus { border-color: var(--accent); }
-#apiScreen input::placeholder { color: var(--muted); font-family: -apple-system, sans-serif; letter-spacing: 0; }
+#setupScreen input:focus { border-color: var(--accent); }
+#setupScreen input::placeholder { color: var(--muted); font-family: -apple-system, sans-serif; letter-spacing: 0; }
 .btn-primary {
   width: 100%; padding: 15px;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
@@ -60,8 +68,7 @@ html, body {
   cursor: pointer; transition: opacity 0.2s; font-family: -apple-system, sans-serif;
 }
 .btn-primary:active { opacity: 0.8; }
-#apiScreen .skip { font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; }
-#apiNote { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5; }
+#setupScreen .skip { font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; }
 
 /* Header */
 #header {
@@ -86,7 +93,7 @@ html, body {
   width: 6px; height: 6px; border-radius: 50%; background: var(--red);
   display: inline-block; animation: pulse 1s infinite;
 }
-#historyBtn {
+#historyBtn, #settingsBtn {
   background: var(--surface); border: 1px solid var(--border); color: var(--text);
   width: 36px; height: 36px; border-radius: 10px; font-size: 17px;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -175,7 +182,6 @@ html, body {
   border-top: 1px solid var(--border); z-index: 100;
   display: flex; flex-direction: column; gap: 10px;
 }
-/* Save options row — shown after stopping, before saving */
 #saveRow { display: none; gap: 10px; }
 #saveTranscriptBtn {
   flex: 1; padding: 13px; background: var(--surface); border: 1px solid var(--border);
@@ -190,7 +196,6 @@ html, body {
   cursor: pointer; font-family: -apple-system, sans-serif;
 }
 #summarizeBtn:disabled { opacity: 0.6; cursor: default; }
-/* Post-save summarize — shown after raw save, if API key */
 #postSaveRow { display: none; }
 #postSummarizeBtn {
   width: 100%; padding: 13px;
@@ -199,7 +204,6 @@ html, body {
   cursor: pointer; font-family: -apple-system, sans-serif;
 }
 #postSummarizeBtn:disabled { opacity: 0.6; cursor: default; }
-/* Controls row */
 .controls-row { display: flex; align-items: center; gap: 10px; }
 .icon-btn {
   width: 50px; height: 50px; border-radius: 14px; background: var(--surface); border: none;
@@ -226,7 +230,7 @@ html, body {
 .seg-count .num { font-size: 16px; font-weight: 700; line-height: 1; }
 .seg-count .lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
-/* ── History panel ── */
+/* History panel */
 #historyBackdrop {
   display: none; position: fixed; inset: 0; z-index: 150;
   background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
@@ -251,10 +255,10 @@ html, body {
 }
 #historyTitle { font-size: 16px; font-weight: 700; }
 .hist-header-actions { display: flex; align-items: center; gap: 8px; }
-#clearKeyBtn {
-  background: rgba(239,68,68,0.1); border: none; color: var(--red);
+#manageKeysBtn {
+  background: rgba(99,102,241,0.1); border: none; color: var(--accent);
   font-size: 12px; padding: 5px 10px; border-radius: 8px;
-  cursor: pointer; display: none; font-family: -apple-system, sans-serif;
+  cursor: pointer; font-family: -apple-system, sans-serif;
 }
 #historyCloseBtn {
   background: var(--surface); border: none; color: var(--muted);
@@ -286,7 +290,82 @@ html, body {
 .hist-empty { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 14px; line-height: 1.7; }
 .hist-empty-icon { font-size: 40px; margin-bottom: 10px; }
 
-/* ── Detail view ── */
+/* Settings panel */
+#settingsBackdrop {
+  display: none; position: fixed; inset: 0; z-index: 150;
+  background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+#settingsPanel {
+  position: fixed; bottom: 0; left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%; max-width: 480px; max-height: 82dvh;
+  background: #111118; border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0; z-index: 160;
+  display: flex; flex-direction: column;
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1); overflow: hidden;
+}
+#settingsPanel.open { transform: translateX(-50%) translateY(0); }
+#settingsHandle {
+  width: 36px; height: 4px; background: var(--muted); border-radius: 2px;
+  margin: 10px auto 0; flex-shrink: 0;
+}
+#settingsHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+#settingsTitle { font-size: 16px; font-weight: 700; }
+#settingsCloseBtn {
+  background: var(--surface); border: none; color: var(--muted);
+  width: 30px; height: 30px; border-radius: 8px; font-size: 14px; cursor: pointer;
+}
+#settingsList {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 12px 16px; padding-bottom: max(env(safe-area-inset-bottom), 24px);
+  display: flex; flex-direction: column; gap: 10px;
+}
+#settingsList::-webkit-scrollbar { display: none; }
+
+/* Provider cards */
+.provider-card {
+  border-radius: 14px; border: 1px solid var(--border); padding: 14px 16px;
+  background: var(--surface); transition: border-color 0.2s;
+}
+.provider-card.active-provider { border-color: var(--accent); background: rgba(99,102,241,0.05); }
+.provider-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.provider-icon {
+  width: 36px; height: 36px; border-radius: 10px; background: rgba(99,102,241,0.15);
+  display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+}
+.provider-name { font-size: 15px; font-weight: 700; }
+.provider-model { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.provider-active-badge {
+  margin-left: auto; background: rgba(99,102,241,0.15); color: var(--accent);
+  font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+}
+.provider-key-row { display: flex; gap: 8px; align-items: center; }
+.provider-key-input {
+  flex: 1; padding: 10px 12px; background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border); border-radius: 10px; color: var(--text);
+  font-size: 13px; outline: none; font-family: monospace; min-width: 0;
+}
+.provider-key-input:focus { border-color: var(--accent); }
+.provider-save-btn {
+  padding: 10px 14px; background: var(--accent); border: none;
+  border-radius: 10px; color: #fff; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; font-family: -apple-system, sans-serif; flex-shrink: 0;
+}
+.provider-clear-btn {
+  padding: 10px 12px; background: rgba(239,68,68,0.1); border: none;
+  border-radius: 10px; color: var(--red); font-size: 13px; cursor: pointer; flex-shrink: 0;
+}
+.provider-set-active-btn {
+  width: 100%; margin-top: 10px; padding: 9px;
+  background: transparent; border: 1px solid var(--accent);
+  border-radius: 10px; color: var(--accent); font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: -apple-system, sans-serif;
+}
+
+/* Detail view */
 #detailPanel {
   position: fixed; inset: 0; transform: translateX(100%); background: var(--bg); z-index: 170;
   display: flex; flex-direction: column;
@@ -340,15 +419,21 @@ html, body {
 </head>
 <body>
 
-<!-- API Key Screen -->
-<div id="apiScreen">
+<!-- Setup Screen -->
+<div id="setupScreen">
   <div class="icon">🔑</div>
-  <h2>Anthropic API Key</h2>
-  <p>Enter your API key to enable AI summarization. Your key is stored on this device.</p>
-  <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" autocorrect="off" spellcheck="false" />
-  <button class="btn-primary" onclick="saveApiKey()">Save &amp; Continue</button>
-  <span class="skip" onclick="skipApiKey()">Skip — use without summarization</span>
-  <p id="apiNote">Get a key at console.anthropic.com</p>
+  <h2>AI Summarization</h2>
+  <p>Add an API key to enable AI meeting summaries. Your key stays on this device only.</p>
+  <div id="setupProviderPills">
+    <button class="setup-pill active" onclick="selectSetupProvider('anthropic')">Anthropic</button>
+    <button class="setup-pill" onclick="selectSetupProvider('openai')">OpenAI</button>
+    <button class="setup-pill" onclick="selectSetupProvider('perplexity')">Perplexity</button>
+  </div>
+  <p id="setupProviderInfo">Claude Sonnet · claude-sonnet-4-20250514</p>
+  <input type="password" id="setupKeyInput" placeholder="sk-ant-..." autocomplete="off" autocorrect="off" spellcheck="false" />
+  <button class="btn-primary" onclick="saveSetupKey()">Save &amp; Continue</button>
+  <span class="skip" onclick="skipSetup()">Skip — use without summarization</span>
+  <p style="font-size:12px;color:var(--muted);text-align:center;max-width:260px">You can add or switch providers anytime via ⚙️ in the app</p>
 </div>
 
 <div id="app" style="display:none">
@@ -363,6 +448,7 @@ html, body {
       </div>
     </div>
     <div class="header-right">
+      <button id="settingsBtn" onclick="openSettings()" title="AI Settings">⚙️</button>
       <button id="historyBtn" onclick="openHistory()" title="Recordings">🕐</button>
       <button id="resetBtn" onclick="resetAll()">Reset</button>
     </div>
@@ -395,7 +481,7 @@ html, body {
   <div id="bottomBar">
     <div id="saveRow">
       <button id="saveTranscriptBtn" onclick="saveTranscript()">💾 Save Transcript</button>
-      <button id="summarizeBtn" onclick="summarizeAndSave()">✦ Summarize &amp; Save</button>
+      <button id="summarizeBtn" onclick="summarizeAndSave()">✦ Summarize</button>
     </div>
     <div id="postSaveRow">
       <button id="postSummarizeBtn" onclick="summarizeAndSave()">✦ Summarize Meeting</button>
@@ -422,11 +508,24 @@ html, body {
     <div id="historyHeader">
       <span id="historyTitle">Recordings</span>
       <div class="hist-header-actions">
-        <button id="clearKeyBtn" onclick="clearApiKey()">Clear API Key</button>
+        <button id="manageKeysBtn" onclick="openSettingsFromHistory()">⚙ Keys</button>
         <button id="historyCloseBtn" onclick="closeHistory()">✕</button>
       </div>
     </div>
     <div id="historyList"></div>
+  </div>
+
+  <!-- Settings backdrop -->
+  <div id="settingsBackdrop" onclick="closeSettings()"></div>
+
+  <!-- Settings panel -->
+  <div id="settingsPanel">
+    <div id="settingsHandle"></div>
+    <div id="settingsHeader">
+      <span id="settingsTitle">AI Provider</span>
+      <button id="settingsCloseBtn" onclick="closeSettings()">✕</button>
+    </div>
+    <div id="settingsList"></div>
   </div>
 
   <!-- Detail panel -->
@@ -448,19 +547,60 @@ html, body {
 </div>
 
 <script>
+  // ── Providers ──────────────────────────────────────────────────────────────
+  const PROVIDERS = {
+    anthropic: {
+      label: 'Anthropic',
+      model: 'Claude Sonnet',
+      modelId: 'claude-sonnet-4-20250514',
+      icon: '✦',
+      placeholder: 'sk-ant-...',
+      endpoint: 'https://api.anthropic.com/v1/messages',
+      type: 'anthropic',
+      validate: function(k) { return k.startsWith('sk-ant-'); }
+    },
+    openai: {
+      label: 'OpenAI',
+      model: 'GPT-4o',
+      modelId: 'gpt-4o',
+      icon: '⬡',
+      placeholder: 'sk-...',
+      endpoint: 'https://api.openai.com/v1/chat/completions',
+      type: 'openai',
+      validate: function(k) { return k.startsWith('sk-') && !k.startsWith('sk-ant-'); }
+    },
+    perplexity: {
+      label: 'Perplexity',
+      model: 'Sonar Pro',
+      modelId: 'sonar-pro',
+      icon: '◎',
+      placeholder: 'pplx-...',
+      endpoint: 'https://api.perplexity.ai/chat/completions',
+      type: 'openai',
+      validate: function(k) { return k.startsWith('pplx-'); }
+    }
+  };
+
+  const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
+
   // ── State ──────────────────────────────────────────────────────────────────
-  let apiKey = '';
+  let providerKeys = { anthropic: '', openai: '', perplexity: '' };
+  let activeProvider = 'anthropic';
+  let setupProvider = 'anthropic';
   let phase = 'idle'; // idle | recording | stopped | summarizing
   let segments = [];
   let elapsed = 0;
   let timerInterval = null;
   let recognition = null;
   let finalBuffer = '';
-  let currentRecordingId = null; // id of the current/last recording (set on save)
+  let currentRecordingId = null;
   let detailRecordingId = null;
   let detailTab = 'transcript';
 
   const COLORS = ['#a78bfa','#34d399','#f472b6','#60a5fa','#fbbf24','#fb923c'];
+
+  function getActiveKey() { return providerKeys[activeProvider] || ''; }
+  function hasAnyKey() { return Object.keys(providerKeys).some(function(p) { return !!providerKeys[p]; }); }
 
   // ── Wake lock ──────────────────────────────────────────────────────────────
   let wakeLock = null;
@@ -524,34 +664,155 @@ html, body {
     try { localStorage.setItem('transcriber_recordings', JSON.stringify(all)); } catch(e) {}
   }
 
-  // ── API Key ────────────────────────────────────────────────────────────────
-  function saveApiKey() {
-    const val = document.getElementById('apiKeyInput').value.trim();
-    if (val && !val.startsWith('sk-ant-')) {
-      alert("That doesn't look like a valid Anthropic API key (should start with sk-ant-).");
+  // ── Setup screen ───────────────────────────────────────────────────────────
+  function selectSetupProvider(p) {
+    setupProvider = p;
+    const keys = Object.keys(PROVIDERS);
+    document.querySelectorAll('.setup-pill').forEach(function(btn, i) {
+      btn.classList.toggle('active', keys[i] === p);
+    });
+    const prov = PROVIDERS[p];
+    document.getElementById('setupKeyInput').placeholder = prov.placeholder;
+    document.getElementById('setupKeyInput').value = '';
+    document.getElementById('setupProviderInfo').textContent = prov.label + ' · ' + prov.modelId;
+  }
+
+  function saveSetupKey() {
+    const val = document.getElementById('setupKeyInput').value.trim();
+    if (!val) { skipSetup(); return; }
+    const prov = PROVIDERS[setupProvider];
+    if (!prov.validate(val)) {
+      alert("That doesn't look like a valid " + prov.label + " key.\nExpected format: " + prov.placeholder);
       return;
     }
-    apiKey = val;
-    if (val) localStorage.setItem('transcriber_apikey', val);
-    else localStorage.removeItem('transcriber_apikey');
+    providerKeys[setupProvider] = val;
+    localStorage.setItem('transcriber_pk_' + setupProvider, val);
+    activeProvider = setupProvider;
+    localStorage.setItem('transcriber_active_provider', setupProvider);
     showApp();
   }
 
-  function skipApiKey() { apiKey = ''; showApp(); }
-
-  function clearApiKey() {
-    if (!confirm('Clear your saved API key?')) return;
-    apiKey = '';
-    localStorage.removeItem('transcriber_apikey');
-    document.getElementById('clearKeyBtn').style.display = 'none';
-    closeHistory();
-  }
+  function skipSetup() { showApp(); }
 
   function showApp() {
-    document.getElementById('apiScreen').style.display = 'none';
+    document.getElementById('setupScreen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    if (apiKey) document.getElementById('clearKeyBtn').style.display = 'block';
+    updateSummarizeButtons();
   }
+
+  // ── Settings panel ─────────────────────────────────────────────────────────
+  function openSettings() {
+    renderSettingsList();
+    document.getElementById('settingsBackdrop').style.display = 'block';
+    requestAnimationFrame(function() { document.getElementById('settingsPanel').classList.add('open'); });
+  }
+
+  function closeSettings() {
+    document.getElementById('settingsPanel').classList.remove('open');
+    document.getElementById('settingsBackdrop').style.display = 'none';
+  }
+
+  function openSettingsFromHistory() {
+    closeHistory();
+    setTimeout(openSettings, 350);
+  }
+
+  function renderSettingsList() {
+    const container = document.getElementById('settingsList');
+    container.innerHTML = Object.keys(PROVIDERS).map(function(p) {
+      const prov = PROVIDERS[p];
+      const key = providerKeys[p];
+      const isActive = p === activeProvider && !!key;
+      const hasKey = !!key;
+      return (
+        '<div class="provider-card' + (isActive ? ' active-provider' : '') + '">' +
+          '<div class="provider-card-header">' +
+            '<div class="provider-icon">' + prov.icon + '</div>' +
+            '<div>' +
+              '<div class="provider-name">' + prov.label + '</div>' +
+              '<div class="provider-model">' + prov.model + '</div>' +
+            '</div>' +
+            (isActive ? '<span class="provider-active-badge">Active</span>' : '') +
+          '</div>' +
+          '<div class="provider-key-row">' +
+            '<input type="password" class="provider-key-input" id="pkey-' + p + '" ' +
+              'placeholder="' + prov.placeholder + '" ' +
+              'value="' + (hasKey ? '\u2022\u2022\u2022\u2022' + key.slice(-4) : '') + '" ' +
+              'autocomplete="off" autocorrect="off" spellcheck="false" ' +
+              'onfocus="clearMasked(\'' + p + '\')" />' +
+            '<button class="provider-save-btn" onclick="saveProviderKey(\'' + p + '\')">Save</button>' +
+            (hasKey ? '<button class="provider-clear-btn" onclick="clearProviderKey(\'' + p + '\')">✕</button>' : '') +
+          '</div>' +
+          (!isActive && hasKey ? '<button class="provider-set-active-btn" onclick="setActiveProvider(\'' + p + '\')">Use ' + prov.label + ' for summaries</button>' : '') +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function clearMasked(p) {
+    const input = document.getElementById('pkey-' + p);
+    if (input && input.value.includes('\u2022')) input.value = '';
+  }
+
+  function saveProviderKey(p) {
+    const input = document.getElementById('pkey-' + p);
+    const val = input ? input.value.trim() : '';
+    if (!val || val.includes('\u2022')) return;
+    if (!PROVIDERS[p].validate(val)) {
+      alert('Key format for ' + PROVIDERS[p].label + ' should start with: ' + PROVIDERS[p].placeholder);
+      return;
+    }
+    providerKeys[p] = val;
+    localStorage.setItem('transcriber_pk_' + p, val);
+    if (!providerKeys[activeProvider]) activeProvider = p;
+    localStorage.setItem('transcriber_active_provider', activeProvider);
+    renderSettingsList();
+    updateSummarizeButtons();
+  }
+
+  function clearProviderKey(p) {
+    if (!confirm('Clear ' + PROVIDERS[p].label + ' API key?')) return;
+    providerKeys[p] = '';
+    localStorage.removeItem('transcriber_pk_' + p);
+    if (activeProvider === p) {
+      const other = Object.keys(providerKeys).find(function(k) { return k !== p && !!providerKeys[k]; });
+      activeProvider = other || 'anthropic';
+      localStorage.setItem('transcriber_active_provider', activeProvider);
+    }
+    renderSettingsList();
+    updateSummarizeButtons();
+  }
+
+  function setActiveProvider(p) {
+    activeProvider = p;
+    localStorage.setItem('transcriber_active_provider', p);
+    renderSettingsList();
+    updateSummarizeButtons();
+  }
+
+  function updateSummarizeButtons() {
+    const hasKey = !!getActiveKey();
+    const prov = PROVIDERS[activeProvider];
+    const label = hasKey ? ('✦ Summarize · ' + prov.label) : '✦ Summarize';
+    const postLabel = hasKey ? ('✦ Summarize · ' + prov.label) : '✦ Summarize Meeting';
+    const detailLabel = hasKey ? ('✦ Summarize · ' + prov.label) : '✦ Summarize Meeting';
+    var sumBtn = document.getElementById('summarizeBtn');
+    var postBtn = document.getElementById('postSummarizeBtn');
+    var detailBtn = document.getElementById('detailSummarizeBtn');
+    if (sumBtn) sumBtn.textContent = label;
+    if (postBtn) postBtn.textContent = postLabel;
+    if (detailBtn) detailBtn.textContent = detailLabel;
+  }
+
+  // Swipe down to close settings
+  (function() {
+    var startY = 0;
+    var panel = document.getElementById('settingsPanel');
+    panel.addEventListener('touchstart', function(e) { startY = e.touches[0].clientY; }, { passive: true });
+    panel.addEventListener('touchend', function(e) {
+      if (e.changedTouches[0].clientY - startY > 80) closeSettings();
+    }, { passive: true });
+  })();
 
   // ── Formatting ─────────────────────────────────────────────────────────────
   function formatTime(s) {
@@ -692,12 +953,20 @@ html, body {
     document.getElementById('listening').style.display = 'none';
     updateStatus(); updateGlow(); updateRecordBtn();
     if (segments.length > 0) {
+      // Auto-save the transcript
+      currentRecordingId = Date.now();
+      saveRecording({ id: currentRecordingId, date: new Date().toISOString(), duration: elapsed, segments: segments.slice(), summary: null });
+
       const saveRow = document.getElementById('saveRow');
-      saveRow.style.display = 'flex';
-      // Hide summarize button if no API key
-      document.getElementById('summarizeBtn').style.display = apiKey ? '' : 'none';
-      // Make save button full width when summarize is hidden
-      document.getElementById('saveTranscriptBtn').style.flex = apiKey ? '1' : '1';
+      saveRow.style.display = 'none';
+      if (getActiveKey()) {
+        document.getElementById('postSaveRow').style.display = 'block';
+      } else {
+        // Show save row with only the save button since no API key
+        saveRow.style.display = 'flex';
+        document.getElementById('summarizeBtn').style.display = 'none';
+        document.getElementById('saveTranscriptBtn').textContent = '✓ Saved — Record Again?';
+      }
     }
   }
 
@@ -716,21 +985,22 @@ html, body {
   // ── Save / Summarize ───────────────────────────────────────────────────────
   function saveTranscript() {
     if (!segments.length) return;
-    currentRecordingId = Date.now();
-    saveRecording({ id: currentRecordingId, date: new Date().toISOString(), duration: elapsed, segments: segments.slice(), summary: null });
+    if (!currentRecordingId) {
+      currentRecordingId = Date.now();
+      saveRecording({ id: currentRecordingId, date: new Date().toISOString(), duration: elapsed, segments: segments.slice(), summary: null });
+    }
     document.getElementById('saveRow').style.display = 'none';
-    if (apiKey) {
+    if (getActiveKey()) {
       document.getElementById('postSaveRow').style.display = 'block';
     }
     updateRecordBtn();
   }
 
   async function summarizeAndSave() {
-    if (!apiKey) { alert('No API key set.'); return; }
+    if (!getActiveKey()) { alert('No API key set. Tap ⚙️ to add one.'); return; }
     const text = segments.map(function(s) { return s.speaker + ': ' + s.text; }).join('\n');
     if (!text.trim()) return;
 
-    // Save raw first if not yet saved
     if (!currentRecordingId) {
       currentRecordingId = Date.now();
       saveRecording({ id: currentRecordingId, date: new Date().toISOString(), duration: elapsed, segments: segments.slice(), summary: null });
@@ -750,7 +1020,6 @@ html, body {
     try {
       const summary = await callSummarizeAPI(text);
       renderSummaryInto(summary, document.getElementById('summaryCards'));
-      // Patch saved recording with summary
       const all = loadRecordings();
       const rec = all.find(function(r) { return r.id === currentRecordingId; });
       if (rec) { rec.summary = summary; saveRecording(rec); }
@@ -766,28 +1035,52 @@ html, body {
     updateRecordBtn();
   }
 
+  // ── API adapters ───────────────────────────────────────────────────────────
   async function callSummarizeAPI(text) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const prov = PROVIDERS[activeProvider];
+    const key = getActiveKey();
+    if (!key) throw new Error('No API key for ' + prov.label);
+    if (prov.type === 'anthropic') return callAnthropicAPI(text, prov, key);
+    return callOpenAICompatibleAPI(text, prov, key);
+  }
+
+  async function callAnthropicAPI(text, prov, key) {
+    const res = await fetch(prov.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
+        'x-api-key': key,
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: prov.modelId,
         max_tokens: 1500,
-        messages: [{
-          role: 'user',
-          content: 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n' + text
-        }]
+        messages: [{ role: 'user', content: SUMMARY_PROMPT + text }]
       })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
     const raw = (data.content || []).find(function(b) { return b.type === 'text'; });
     return JSON.parse((raw ? raw.text : '{}').replace(/```json|```/g, '').trim());
+  }
+
+  async function callOpenAICompatibleAPI(text, prov, key) {
+    const res = await fetch(prov.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key
+      },
+      body: JSON.stringify({
+        model: prov.modelId,
+        messages: [{ role: 'user', content: SUMMARY_PROMPT + text }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    const raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    return JSON.parse((raw || '{}').replace(/```json|```/g, '').trim());
   }
 
   // ── Summary rendering ──────────────────────────────────────────────────────
@@ -868,6 +1161,8 @@ html, body {
     document.getElementById('errorBox').style.display = 'none';
     document.getElementById('copyBtn').classList.remove('active');
     document.getElementById('summaryPlaceholder').style.display = 'none';
+    document.getElementById('saveTranscriptBtn').textContent = '💾 Save Transcript';
+    document.getElementById('summarizeBtn').style.display = '';
     switchTab('transcript'); updateStatus(); updateGlow(); updateRecordBtn();
   }
 
@@ -918,7 +1213,7 @@ html, body {
     deleteRecording(id); renderHistoryList();
   }
 
-  // Swipe down to close
+  // Swipe down to close history
   (function() {
     var startY = 0;
     var panel = document.getElementById('historyPanel');
@@ -963,7 +1258,7 @@ html, body {
     const bottomBar = document.getElementById('detailBottomBar');
     if (!rec) { container.innerHTML = ''; return; }
     const hasSummary = rec.summary && rec.summary.overview;
-    bottomBar.style.display = (!hasSummary && apiKey && detailTab === 'summary') ? 'block' : 'none';
+    bottomBar.style.display = (!hasSummary && getActiveKey() && detailTab === 'summary') ? 'block' : 'none';
 
     if (detailTab === 'transcript') {
       if (!rec.segments.length) {
@@ -983,7 +1278,7 @@ html, body {
     } else {
       if (!hasSummary) {
         container.innerHTML = '<p style="color:var(--muted);text-align:center;padding-top:40px;font-size:14px">' +
-          (apiKey ? 'No summary yet.<br>Tap Summarize below.' : 'No summary. Add an API key to generate one.') + '</p>';
+          (getActiveKey() ? 'No summary yet.<br>Tap Summarize below.' : 'No summary. Tap ⚙️ to add an API key.') + '</p>';
         return;
       }
       const tmp = document.createElement('div');
@@ -994,7 +1289,7 @@ html, body {
   }
 
   async function summarizeFromDetail() {
-    if (!apiKey || !detailRecordingId) return;
+    if (!getActiveKey() || !detailRecordingId) return;
     const all = loadRecordings();
     const rec = all.find(function(r) { return r.id === detailRecordingId; });
     if (!rec) return;
@@ -1026,10 +1321,28 @@ html, body {
   document.getElementById('transcriptContent').style.display = 'flex';
   document.getElementById('summaryContent').style.display = 'none';
 
-  // Restore saved API key — skip key screen
   (function() {
-    const saved = localStorage.getItem('transcriber_apikey');
-    if (saved) { apiKey = saved; showApp(); }
+    // Migrate legacy single Anthropic key
+    const legacy = localStorage.getItem('transcriber_apikey');
+    if (legacy) {
+      localStorage.setItem('transcriber_pk_anthropic', legacy);
+      localStorage.removeItem('transcriber_apikey');
+    }
+    // Load all provider keys
+    Object.keys(PROVIDERS).forEach(function(p) {
+      const k = localStorage.getItem('transcriber_pk_' + p);
+      if (k) providerKeys[p] = k;
+    });
+    // Load active provider preference
+    const savedActive = localStorage.getItem('transcriber_active_provider');
+    if (savedActive && PROVIDERS[savedActive] && providerKeys[savedActive]) {
+      activeProvider = savedActive;
+    } else {
+      const first = Object.keys(providerKeys).find(function(p) { return !!providerKeys[p]; });
+      if (first) activeProvider = first;
+    }
+    if (hasAnyKey()) showApp();
+    // else setup screen is shown by default
   })();
 
   // Register service worker for PWA/offline support

@@ -456,6 +456,18 @@ html, body {
   cursor: pointer; font-family: -apple-system, sans-serif;
 }
 
+/* Toast */
+#toast {
+  position: fixed; bottom: 110px; left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3);
+  color: #34d399; padding: 10px 22px; border-radius: 22px;
+  font-size: 14px; font-weight: 600; opacity: 0;
+  transition: opacity 0.25s, transform 0.25s; pointer-events: none;
+  z-index: 999; white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
 /* Animations */
 @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
 @keyframes fadeUp { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
@@ -483,6 +495,7 @@ html, body {
 
 <div id="app" style="display:none">
   <div id="glow"></div>
+  <div id="toast"></div>
 
   <div id="header">
     <div class="header-left">
@@ -720,6 +733,7 @@ html, body {
         try { localStorage.setItem('transcriber_recordings', JSON.stringify(all)); } catch(e2) {}
       }
     }
+    autoBackup();
   }
 
   function deleteRecording(id) {
@@ -773,6 +787,98 @@ html, body {
       e.target.value = '';
     };
     reader.readAsText(file);
+  }
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  function showToast(msg, isError) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.background = isError ? 'rgba(239,68,68,0.12)' : 'rgba(52,211,153,0.12)';
+    t.style.borderColor = isError ? 'rgba(239,68,68,0.3)' : 'rgba(52,211,153,0.3)';
+    t.style.color = isError ? '#fca5a5' : '#34d399';
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function() { t.classList.remove('show'); }, 2500);
+  }
+
+  // ── Auto-backup (File System Access API) ───────────────────────────────────
+  function openBackupDB() {
+    return new Promise(function(resolve, reject) {
+      var req = indexedDB.open('transcriber_backup_db', 1);
+      req.onupgradeneeded = function(e) { e.target.result.createObjectStore('handles'); };
+      req.onsuccess = function(e) { resolve(e.target.result); };
+      req.onerror = reject;
+    });
+  }
+
+  function saveBackupHandle(handle) {
+    return openBackupDB().then(function(db) {
+      return new Promise(function(resolve, reject) {
+        var tx = db.transaction('handles', 'readwrite');
+        tx.objectStore('handles').put(handle, 'backup_dir');
+        tx.oncomplete = resolve; tx.onerror = reject;
+      });
+    });
+  }
+
+  function loadBackupHandle() {
+    return openBackupDB().then(function(db) {
+      return new Promise(function(resolve, reject) {
+        var tx = db.transaction('handles', 'readonly');
+        var req = tx.objectStore('handles').get('backup_dir');
+        req.onsuccess = function() { resolve(req.result || null); };
+        req.onerror = reject;
+      });
+    });
+  }
+
+  async function setupAutoBackup() {
+    if (!window.showDirectoryPicker) {
+      showToast('Auto-backup needs iOS 16+ Safari', true);
+      return;
+    }
+    try {
+      var handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      await saveBackupHandle(handle);
+      localStorage.setItem('transcriber_auto_backup', '1');
+      await autoBackup(true);
+      renderSettingsList();
+      showToast('Auto-backup enabled ✓');
+    } catch(e) {
+      if (e.name !== 'AbortError') showToast('Could not set backup folder', true);
+    }
+  }
+
+  async function disableAutoBackup() {
+    localStorage.removeItem('transcriber_auto_backup');
+    try {
+      var db = await openBackupDB();
+      var tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').delete('backup_dir');
+    } catch(e) {}
+    renderSettingsList();
+    showToast('Auto-backup disabled');
+  }
+
+  async function autoBackup(fromSetup) {
+    if (!localStorage.getItem('transcriber_auto_backup')) return;
+    try {
+      var handle = await loadBackupHandle();
+      if (!handle) return;
+      var perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') {
+        perm = await handle.requestPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') return;
+      }
+      var all = loadRecordings();
+      var data = JSON.stringify({ version: 1, exported: new Date().toISOString(), recordings: all }, null, 2);
+      var fileHandle = await handle.getFileHandle('transcriber-backup.json', { create: true });
+      var writable = await fileHandle.createWritable();
+      await writable.write(data); await writable.close();
+      if (!fromSetup) showToast('Backed up ✓');
+    } catch(e) {
+      console.warn('Auto-backup failed:', e);
+    }
   }
 
   // ── Setup screen ───────────────────────────────────────────────────────────
@@ -830,6 +936,26 @@ html, body {
 
   function renderSettingsList() {
     const container = document.getElementById('settingsList');
+    const autoEnabled = !!localStorage.getItem('transcriber_auto_backup');
+    const hasAPI = !!window.showDirectoryPicker;
+    const autoBackupCard = (
+      '<div class="provider-card" style="margin-top:4px">' +
+        '<div class="provider-card-header">' +
+          '<div class="provider-icon">☁️</div>' +
+          '<div>' +
+            '<div class="provider-name">Auto-backup</div>' +
+            '<div class="provider-model">' + (hasAPI ? 'Saves backup.json after each recording' : 'Requires iOS 16+ Safari') + '</div>' +
+          '</div>' +
+          (autoEnabled ? '<span class="provider-active-badge" style="color:#34d399;background:rgba(52,211,153,0.12)">On</span>' : '') +
+        '</div>' +
+        (hasAPI
+          ? (autoEnabled
+              ? '<button class="provider-set-active-btn" style="color:var(--red);border-color:var(--red)" onclick="disableAutoBackup()">Disable auto-backup</button>'
+              : '<button class="provider-set-active-btn" onclick="setupAutoBackup()">Set backup folder…</button>')
+          : '<p style="font-size:12px;color:var(--muted);margin-top:4px">Use the ⬇ Export button in Recordings to back up manually.</p>'
+        ) +
+      '</div>'
+    );
     container.innerHTML = Object.keys(PROVIDERS).map(function(p) {
       const prov = PROVIDERS[p];
       const key = providerKeys[p];
@@ -857,7 +983,7 @@ html, body {
           (!isActive && hasKey ? '<button class="provider-set-active-btn" onclick="setActiveProvider(\'' + p + '\')">Use ' + prov.label + ' for summaries</button>' : '') +
         '</div>'
       );
-    }).join('');
+    }).join('') + autoBackupCard;
   }
 
   function clearMasked(p) {

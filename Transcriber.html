@@ -456,6 +456,31 @@ html, body {
   cursor: pointer; font-family: -apple-system, sans-serif;
 }
 
+/* Usage card */
+.usage-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 10px 0 4px;
+}
+.usage-cell {
+  background: rgba(0,0,0,0.25); border-radius: 8px; padding: 8px 10px; text-align: center;
+}
+.usage-cell .u-val { font-size: 15px; font-weight: 700; color: var(--text); }
+.usage-cell .u-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+.usage-cost { font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 8px; }
+.usage-cost span { color: var(--green); font-weight: 600; }
+.usage-actions { display: flex; gap: 8px; margin-top: 6px; }
+.usage-link {
+  flex: 1; padding: 9px; background: rgba(99,102,241,0.08);
+  border: 1px solid rgba(99,102,241,0.2); border-radius: 10px;
+  color: var(--accent); font-size: 12px; font-weight: 600; text-align: center;
+  cursor: pointer; text-decoration: none; display: block;
+  font-family: -apple-system, sans-serif;
+}
+.usage-reset {
+  padding: 9px 14px; background: transparent; border: 1px solid var(--border);
+  border-radius: 10px; color: var(--muted); font-size: 12px;
+  cursor: pointer; font-family: -apple-system, sans-serif; white-space: nowrap;
+}
+
 /* Toast */
 #toast {
   position: fixed; bottom: 110px; left: 50%;
@@ -633,7 +658,9 @@ html, body {
       placeholder: 'sk-ant-...',
       endpoint: 'https://api.anthropic.com/v1/messages',
       type: 'anthropic',
-      validate: function(k) { return k.startsWith('sk-ant-'); }
+      validate: function(k) { return k.startsWith('sk-ant-'); },
+      pricing: { input: 3.00, output: 15.00 },   // $ per 1M tokens
+      billingUrl: 'https://console.anthropic.com/settings/plans'
     },
     openai: {
       label: 'OpenAI',
@@ -643,7 +670,9 @@ html, body {
       placeholder: 'sk-...',
       endpoint: 'https://api.openai.com/v1/chat/completions',
       type: 'openai',
-      validate: function(k) { return k.startsWith('sk-') && !k.startsWith('sk-ant-'); }
+      validate: function(k) { return k.startsWith('sk-') && !k.startsWith('sk-ant-'); },
+      pricing: { input: 2.50, output: 10.00 },
+      billingUrl: 'https://platform.openai.com/usage'
     },
     perplexity: {
       label: 'Perplexity',
@@ -653,9 +682,13 @@ html, body {
       placeholder: 'pplx-...',
       endpoint: 'https://api.perplexity.ai/chat/completions',
       type: 'openai',
-      validate: function(k) { return k.startsWith('pplx-'); }
+      validate: function(k) { return k.startsWith('pplx-'); },
+      pricing: { input: 3.00, output: 3.00 },
+      billingUrl: 'https://www.perplexity.ai/settings/api'
     }
   };
+
+  const APP_VERSION = '1.0.6';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -841,11 +874,46 @@ html, body {
       var handle = await window.showDirectoryPicker({ mode: 'readwrite' });
       await saveBackupHandle(handle);
       localStorage.setItem('transcriber_auto_backup', '1');
+      // Restore any existing backup from this folder first
+      var restored = await restoreFromHandle(handle);
       await autoBackup(true);
       renderSettingsList();
-      showToast('Auto-backup enabled ✓');
+      if (restored > 0) {
+        renderHistoryList();
+        showToast('Restored ' + restored + ' recording' + (restored === 1 ? '' : 's') + ' ✓');
+      } else {
+        showToast('Auto-backup enabled ✓');
+      }
     } catch(e) {
       if (e.name !== 'AbortError') showToast('Could not set backup folder', true);
+    }
+  }
+
+  // Read transcriber-backup.json from a directory handle and merge into localStorage.
+  // Returns the number of new recordings added.
+  async function restoreFromHandle(handle) {
+    try {
+      var fileHandle = await handle.getFileHandle('transcriber-backup.json', { create: false });
+      var file = await fileHandle.getFile();
+      var text = await file.text();
+      var data = JSON.parse(text);
+      var incoming = Array.isArray(data) ? data : (data.recordings || []);
+      if (!incoming.length) return 0;
+      var existing = loadRecordings();
+      var existingIds = new Set(existing.map(function(r) { return r.id; }));
+      var merged = existing.slice();
+      var added = 0;
+      incoming.forEach(function(rec) {
+        if (!existingIds.has(rec.id)) { merged.push(rec); added++; }
+      });
+      if (added > 0) {
+        merged.sort(function(a, b) { return b.id - a.id; });
+        localStorage.setItem('transcriber_recordings', JSON.stringify(merged));
+      }
+      return added;
+    } catch(e) {
+      // No backup file yet — that's fine
+      return 0;
     }
   }
 
@@ -961,6 +1029,26 @@ html, body {
       const key = providerKeys[p];
       const isActive = p === activeProvider && !!key;
       const hasKey = !!key;
+      const u = loadUsage(p);
+      const total = u.input + u.output;
+      const cost = calcCost(p, u.input, u.output);
+      const costStr = cost < 0.0001 ? '<$0.0001' : '$' + cost.toFixed(4);
+      const usageSection = u.calls ? (
+        '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:6px">' +
+            u.calls + ' summar' + (u.calls === 1 ? 'y' : 'ies') + ' · Est. cost: <span style="color:var(--green)">' + costStr + '</span>' +
+          '</div>' +
+          '<div class="usage-grid">' +
+            '<div class="usage-cell"><div class="u-val">' + formatTokens(u.input) + '</div><div class="u-lbl">Input</div></div>' +
+            '<div class="usage-cell"><div class="u-val">' + formatTokens(u.output) + '</div><div class="u-lbl">Output</div></div>' +
+            '<div class="usage-cell"><div class="u-val">' + formatTokens(total) + '</div><div class="u-lbl">Total</div></div>' +
+          '</div>' +
+          '<div class="usage-actions" style="margin-top:6px">' +
+            '<a class="usage-link" href="' + prov.billingUrl + '" target="_blank">Billing Dashboard ↗</a>' +
+            '<button class="usage-reset" onclick="resetUsage(\'' + p + '\')">Reset</button>' +
+          '</div>' +
+        '</div>'
+      ) : '';
       return (
         '<div class="provider-card' + (isActive ? ' active-provider' : '') + '">' +
           '<div class="provider-card-header">' +
@@ -981,9 +1069,11 @@ html, body {
             (hasKey ? '<button class="provider-clear-btn" onclick="clearProviderKey(\'' + p + '\')">✕</button>' : '') +
           '</div>' +
           (!isActive && hasKey ? '<button class="provider-set-active-btn" onclick="setActiveProvider(\'' + p + '\')">Use ' + prov.label + ' for summaries</button>' : '') +
+          usageSection +
         '</div>'
       );
-    }).join('') + autoBackupCard;
+    }).join('') + autoBackupCard +
+    '<div style="text-align:center;padding:16px 0 4px;font-size:12px;color:var(--muted)">Transcriber v' + APP_VERSION + '</div>';
   }
 
   function clearMasked(p) {
@@ -1072,7 +1162,7 @@ html, body {
       el.innerHTML = formatTime(elapsed) + ' · ' + segments.length + ' segments';
       el.style.color = '';
     } else {
-      el.innerHTML = 'Ready'; el.style.color = '';
+      el.innerHTML = 'v' + APP_VERSION + ' · Ready'; el.style.color = '';
     }
   }
 
@@ -1277,8 +1367,46 @@ html, body {
     const prov = PROVIDERS[activeProvider];
     const key = getActiveKey();
     if (!key) throw new Error('No API key for ' + prov.label);
-    if (prov.type === 'anthropic') return callAnthropicAPI(text, prov, key);
-    return callOpenAICompatibleAPI(text, prov, key);
+    const result = prov.type === 'anthropic'
+      ? await callAnthropicAPI(text, prov, key)
+      : await callOpenAICompatibleAPI(text, prov, key);
+    trackUsage(activeProvider, result.usage);
+    return result.summary;
+  }
+
+  // ── Token usage tracking ───────────────────────────────────────────────────
+  function loadUsage(p) {
+    try { return JSON.parse(localStorage.getItem('transcriber_usage_' + p) || 'null') || { input: 0, output: 0, calls: 0 }; }
+    catch(e) { return { input: 0, output: 0, calls: 0 }; }
+  }
+
+  function trackUsage(p, usage) {
+    const current = loadUsage(p);
+    current.input += usage.input || 0;
+    current.output += usage.output || 0;
+    current.calls += 1;
+    localStorage.setItem('transcriber_usage_' + p, JSON.stringify(current));
+    const total = (usage.input || 0) + (usage.output || 0);
+    const cost = calcCost(p, usage.input || 0, usage.output || 0);
+    const costStr = cost < 0.0001 ? '<$0.0001' : '$' + cost.toFixed(4);
+    showToast(formatTokens(total) + ' tokens · ' + costStr);
+  }
+
+  function resetUsage(p) {
+    localStorage.removeItem('transcriber_usage_' + p);
+    renderSettingsList();
+    showToast('Usage reset');
+  }
+
+  function formatTokens(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return n.toString();
+  }
+
+  function calcCost(p, input, output) {
+    const pr = PROVIDERS[p].pricing;
+    return ((input / 1e6) * pr.input) + ((output / 1e6) * pr.output);
   }
 
   async function callAnthropicAPI(text, prov, key) {
@@ -1299,7 +1427,9 @@ html, body {
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
     const raw = (data.content || []).find(function(b) { return b.type === 'text'; });
-    return JSON.parse((raw ? raw.text : '{}').replace(/```json|```/g, '').trim());
+    const summary = JSON.parse((raw ? raw.text : '{}').replace(/```json|```/g, '').trim());
+    const usage = { input: (data.usage && data.usage.input_tokens) || 0, output: (data.usage && data.usage.output_tokens) || 0 };
+    return { summary: summary, usage: usage };
   }
 
   async function callOpenAICompatibleAPI(text, prov, key) {
@@ -1317,7 +1447,9 @@ html, body {
     const data = await res.json();
     if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     const raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    return JSON.parse((raw || '{}').replace(/```json|```/g, '').trim());
+    const summary = JSON.parse((raw || '{}').replace(/```json|```/g, '').trim());
+    const usage = { input: (data.usage && (data.usage.prompt_tokens || data.usage.input_tokens)) || 0, output: (data.usage && (data.usage.completion_tokens || data.usage.output_tokens)) || 0 };
+    return { summary: summary, usage: usage };
   }
 
   // ── Summary rendering ──────────────────────────────────────────────────────

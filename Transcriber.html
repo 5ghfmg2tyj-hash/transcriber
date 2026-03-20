@@ -554,9 +554,12 @@ html, body {
     <div id="historyHeader">
       <span id="historyTitle">Recordings</span>
       <div class="hist-header-actions">
+        <button id="importBtn" onclick="importRecordings()" title="Import backup" style="background:rgba(52,211,153,0.1);border:none;color:#34d399;font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:-apple-system,sans-serif;">⬆ Import</button>
+        <button id="exportBtn" onclick="exportRecordings()" title="Export backup" style="background:rgba(99,102,241,0.1);border:none;color:var(--accent);font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:-apple-system,sans-serif;">⬇ Export</button>
         <button id="manageKeysBtn" onclick="openSettingsFromHistory()">⚙ Keys</button>
         <button id="historyCloseBtn" onclick="closeHistory()">✕</button>
       </div>
+      <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportFile(event)" />
     </div>
     <div id="historyList"></div>
   </div>
@@ -722,6 +725,54 @@ html, body {
   function deleteRecording(id) {
     const all = loadRecordings().filter(function(r) { return r.id !== id; });
     try { localStorage.setItem('transcriber_recordings', JSON.stringify(all)); } catch(e) {}
+  }
+
+  // ── Export / Import ────────────────────────────────────────────────────────
+  function exportRecordings() {
+    var all = loadRecordings();
+    if (!all.length) { alert('No recordings to export.'); return; }
+    var data = JSON.stringify({ version: 1, exported: new Date().toISOString(), recordings: all }, null, 2);
+    var blob = new Blob([data], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'transcriber-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importRecordings() {
+    document.getElementById('importFileInput').click();
+  }
+
+  function handleImportFile(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        var data = JSON.parse(ev.target.result);
+        var incoming = Array.isArray(data) ? data : (data.recordings || []);
+        if (!incoming.length) { alert('No recordings found in file.'); return; }
+        var existing = loadRecordings();
+        var existingIds = new Set(existing.map(function(r) { return r.id; }));
+        var merged = existing.slice();
+        var added = 0;
+        incoming.forEach(function(rec) {
+          if (!existingIds.has(rec.id)) { merged.push(rec); added++; }
+        });
+        merged.sort(function(a, b) { return b.id - a.id; });
+        try {
+          localStorage.setItem('transcriber_recordings', JSON.stringify(merged));
+          alert('Imported ' + added + ' new recording(s). ' + (incoming.length - added) + ' already existed.');
+          renderHistoryList();
+        } catch(err) { alert('Storage full — could not import all recordings.'); }
+      } catch(err) { alert('Invalid backup file.'); }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
   }
 
   // ── Setup screen ───────────────────────────────────────────────────────────

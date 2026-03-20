@@ -411,6 +411,51 @@ html, body {
   cursor: pointer; font-family: -apple-system, sans-serif;
 }
 
+/* Share / QR modal */
+#shareBackdrop {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+#sharePanel {
+  position: fixed; bottom: 0; left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%; max-width: 480px;
+  background: #111118; border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0; z-index: 210;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 0 24px; padding-bottom: max(env(safe-area-inset-bottom), 28px);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+#sharePanel.open { transform: translateX(-50%) translateY(0); }
+#shareHandle { width: 36px; height: 4px; background: var(--muted); border-radius: 2px; margin: 12px auto 18px; }
+#sharePanel h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+#sharePanel .share-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; text-align: center; }
+#qrImg {
+  width: 220px; height: 220px; border-radius: 16px;
+  background: #fff; padding: 12px; margin-bottom: 20px;
+}
+#shareUrlBox {
+  width: 100%; display: flex; gap: 8px; margin-bottom: 14px;
+}
+#shareUrl {
+  flex: 1; padding: 11px 12px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px;
+  color: var(--muted); font-size: 12px; font-family: monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  outline: none; min-width: 0;
+}
+#copyUrlBtn {
+  padding: 11px 16px; background: var(--accent); border: none;
+  border-radius: 10px; color: #fff; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; font-family: -apple-system, sans-serif;
+}
+#shareCloseBtn {
+  width: 100%; padding: 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 14px;
+  color: var(--text); font-size: 15px; font-weight: 600;
+  cursor: pointer; font-family: -apple-system, sans-serif;
+}
+
 /* Animations */
 @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
 @keyframes fadeUp { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
@@ -448,6 +493,7 @@ html, body {
       </div>
     </div>
     <div class="header-right">
+      <button id="shareBtn" onclick="openShare()" title="Share App" style="background:var(--surface);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;">📤</button>
       <button id="settingsBtn" onclick="openSettings()" title="AI Settings">⚙️</button>
       <button id="historyBtn" onclick="openHistory()" title="Recordings">🕐</button>
       <button id="resetBtn" onclick="resetAll()">Reset</button>
@@ -526,6 +572,20 @@ html, body {
       <button id="settingsCloseBtn" onclick="closeSettings()">✕</button>
     </div>
     <div id="settingsList"></div>
+  </div>
+
+  <!-- Share / QR modal -->
+  <div id="shareBackdrop" onclick="closeShare()"></div>
+  <div id="sharePanel">
+    <div id="shareHandle"></div>
+    <h3>Share This App</h3>
+    <p class="share-sub">Scan with iPhone camera to open instantly</p>
+    <img id="qrImg" alt="QR Code" />
+    <div id="shareUrlBox">
+      <input id="shareUrl" type="text" readonly />
+      <button id="copyUrlBtn" onclick="copyAppUrl()">Copy</button>
+    </div>
+    <button id="shareCloseBtn" onclick="closeShare()">Done</button>
   </div>
 
   <!-- Detail panel -->
@@ -1348,6 +1408,39 @@ html, body {
   // Register service worker for PWA/offline support
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function() {});
+  }
+
+  // ── Share / QR ─────────────────────────────────────────────────────────────
+  var APP_URL = 'https://5ghfmg2tyj-hash.github.io/transcriber/Transcriber.html';
+
+  function openShare() {
+    var qr = document.getElementById('qrImg');
+    var encoded = encodeURIComponent(APP_URL);
+    qr.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encoded + '&bgcolor=ffffff&color=09090f&margin=8';
+    document.getElementById('shareUrl').value = APP_URL;
+    document.getElementById('shareBackdrop').style.display = 'block';
+    setTimeout(function() { document.getElementById('sharePanel').classList.add('open'); }, 10);
+  }
+
+  function closeShare() {
+    document.getElementById('sharePanel').classList.remove('open');
+    setTimeout(function() { document.getElementById('shareBackdrop').style.display = 'none'; }, 350);
+  }
+
+  function copyAppUrl() {
+    var btn = document.getElementById('copyUrlBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(APP_URL).then(function() {
+        btn.textContent = '✓ Copied';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    } else {
+      var el = document.getElementById('shareUrl');
+      el.select();
+      document.execCommand('copy');
+      btn.textContent = '✓ Copied';
+      setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+    }
   }
 </script>
 

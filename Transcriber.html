@@ -1022,40 +1022,31 @@ html, body {
         ) +
       '</div>'
     );
-    // Build usage cards for providers that have been used
-    const usageCards = Object.keys(PROVIDERS).map(function(p) {
-      const u = loadUsage(p);
-      if (!u.calls) return '';
+    container.innerHTML = Object.keys(PROVIDERS).map(function(p) {
       const prov = PROVIDERS[p];
+      const key = providerKeys[p];
+      const isActive = p === activeProvider && !!key;
+      const hasKey = !!key;
+      const u = loadUsage(p);
       const total = u.input + u.output;
       const cost = calcCost(p, u.input, u.output);
       const costStr = cost < 0.0001 ? '<$0.0001' : '$' + cost.toFixed(4);
-      return (
-        '<div class="provider-card" style="margin-top:4px">' +
-          '<div class="provider-card-header" style="margin-bottom:4px">' +
-            '<div class="provider-icon">' + prov.icon + '</div>' +
-            '<div><div class="provider-name">' + prov.label + ' Usage</div>' +
-            '<div class="provider-model">' + u.calls + ' summar' + (u.calls === 1 ? 'y' : 'ies') + ' · ' + prov.model + '</div></div>' +
+      const usageSection = u.calls ? (
+        '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:6px">' +
+            u.calls + ' summar' + (u.calls === 1 ? 'y' : 'ies') + ' · Est. cost: <span style="color:var(--green)">' + costStr + '</span>' +
           '</div>' +
           '<div class="usage-grid">' +
             '<div class="usage-cell"><div class="u-val">' + formatTokens(u.input) + '</div><div class="u-lbl">Input</div></div>' +
             '<div class="usage-cell"><div class="u-val">' + formatTokens(u.output) + '</div><div class="u-lbl">Output</div></div>' +
             '<div class="usage-cell"><div class="u-val">' + formatTokens(total) + '</div><div class="u-lbl">Total</div></div>' +
           '</div>' +
-          '<div class="usage-cost">Est. cost: <span>' + costStr + '</span> · Pricing may vary</div>' +
-          '<div class="usage-actions">' +
-            '<a class="usage-link" href="' + prov.billingUrl + '" target="_blank">View Billing Dashboard ↗</a>' +
+          '<div class="usage-actions" style="margin-top:6px">' +
+            '<a class="usage-link" href="' + prov.billingUrl + '" target="_blank">Billing Dashboard ↗</a>' +
             '<button class="usage-reset" onclick="resetUsage(\'' + p + '\')">Reset</button>' +
           '</div>' +
         '</div>'
-      );
-    }).join('');
-
-    container.innerHTML = Object.keys(PROVIDERS).map(function(p) {
-      const prov = PROVIDERS[p];
-      const key = providerKeys[p];
-      const isActive = p === activeProvider && !!key;
-      const hasKey = !!key;
+      ) : '';
       return (
         '<div class="provider-card' + (isActive ? ' active-provider' : '') + '">' +
           '<div class="provider-card-header">' +
@@ -1076,9 +1067,10 @@ html, body {
             (hasKey ? '<button class="provider-clear-btn" onclick="clearProviderKey(\'' + p + '\')">✕</button>' : '') +
           '</div>' +
           (!isActive && hasKey ? '<button class="provider-set-active-btn" onclick="setActiveProvider(\'' + p + '\')">Use ' + prov.label + ' for summaries</button>' : '') +
+          usageSection +
         '</div>'
       );
-    }).join('') + autoBackupCard + usageCards;
+    }).join('') + autoBackupCard;
   }
 
   function clearMasked(p) {
@@ -1391,6 +1383,10 @@ html, body {
     current.output += usage.output || 0;
     current.calls += 1;
     localStorage.setItem('transcriber_usage_' + p, JSON.stringify(current));
+    const total = (usage.input || 0) + (usage.output || 0);
+    const cost = calcCost(p, usage.input || 0, usage.output || 0);
+    const costStr = cost < 0.0001 ? '<$0.0001' : '$' + cost.toFixed(4);
+    showToast(formatTokens(total) + ' tokens · ' + costStr);
   }
 
   function resetUsage(p) {

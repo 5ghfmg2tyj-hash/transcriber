@@ -571,7 +571,7 @@ html, body {
       <button id="postSummarizeBtn" onclick="summarizeAndSave()">✦ Summarize Meeting</button>
     </div>
     <div class="controls-row">
-      <button class="icon-btn" id="copyBtn" onclick="copyTranscript()" title="Copy">📋</button>
+      <button class="icon-btn" id="shareContentBtn" onclick="shareContent()" title="Share">↗</button>
       <button id="recordBtn" onclick="toggleRecord()">
         <span id="recordIcon">⏺</span>
         <span id="recordLabel">Start Recording</span>
@@ -688,7 +688,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.0.6';
+  const APP_VERSION = '1.0.7';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -1190,7 +1190,7 @@ html, body {
     if (segments.length === 1) {
       document.getElementById('tabs').style.display = 'flex';
       document.getElementById('emptyState').style.display = 'none';
-      document.getElementById('copyBtn').classList.add('active');
+      document.getElementById('shareContentBtn').classList.add('active');
       document.getElementById('resetBtn').style.display = 'block';
     }
     document.getElementById('content').scrollTop = document.getElementById('content').scrollHeight;
@@ -1213,7 +1213,7 @@ html, body {
     document.getElementById('saveRow').style.display = 'none';
     document.getElementById('postSaveRow').style.display = 'none';
     document.getElementById('resetBtn').style.display = 'none';
-    document.getElementById('copyBtn').classList.remove('active');
+    document.getElementById('shareContentBtn').classList.remove('active');
     switchTab('transcript');
 
     phase = 'recording';
@@ -1494,13 +1494,57 @@ html, body {
   }
 
   // ── Copy ───────────────────────────────────────────────────────────────────
-  function copyTranscript() {
+  function buildShareText() {
+    const date = currentRecordingId ? new Date(currentRecordingId).toLocaleString() : new Date().toLocaleString();
+    const duration = formatTime(elapsed);
+    let text = '📋 MEETING TRANSCRIPT\n' + date + ' · ' + duration + '\n' + '─'.repeat(40) + '\n\n';
+    text += segments.map(function(s) { return '[' + s.time + '] ' + s.speaker + ': ' + s.text; }).join('\n');
+
+    // Append summary if one exists for current recording
+    const summaryEl = document.getElementById('summaryCards');
+    if (summaryEl && summaryEl.innerHTML) {
+      const all = loadRecordings();
+      const rec = all.find(function(r) { return r.id === currentRecordingId; });
+      if (rec && rec.summary) {
+        const s = rec.summary;
+        text += '\n\n' + '─'.repeat(40) + '\n✦ MEETING SUMMARY\n\n';
+        if (s.overview) text += 'Overview:\n' + s.overview + '\n';
+        if (s.decisions && s.decisions.length) {
+          text += '\nDecisions:\n' + s.decisions.map(function(d) { return '• ' + d; }).join('\n') + '\n';
+        }
+        if (s.action_items && s.action_items.length) {
+          text += '\nAction Items:\n' + s.action_items.map(function(a) {
+            return '□ ' + a.task + (a.owner ? ' — ' + a.owner : '');
+          }).join('\n') + '\n';
+        }
+        if (s.topics && s.topics.length) {
+          text += '\nTopics: ' + s.topics.join(', ') + '\n';
+        }
+      }
+    }
+    return text;
+  }
+
+  async function shareContent() {
     if (!segments.length) return;
-    const text = segments.map(function(s) { return '[' + s.time + '] ' + s.speaker + ': ' + s.text; }).join('\n');
+    const text = buildShareText();
+    const btn = document.getElementById('shareContentBtn');
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Meeting Transcript', text: text });
+      } catch(e) {
+        if (e.name !== 'AbortError') fallbackCopy(text, btn);
+      }
+    } else {
+      fallbackCopy(text, btn);
+    }
+  }
+
+  function fallbackCopy(text, btn) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function() {
-        document.getElementById('copyBtn').textContent = '✅';
-        setTimeout(function() { document.getElementById('copyBtn').textContent = '📋'; }, 2000);
+        btn.textContent = '✅'; setTimeout(function() { btn.textContent = '↗'; }, 2000);
       });
     } else {
       const ta = document.createElement('textarea');
@@ -1508,8 +1552,7 @@ html, body {
       document.body.appendChild(ta); ta.focus(); ta.select();
       try { document.execCommand('copy'); } catch(e) {}
       document.body.removeChild(ta);
-      document.getElementById('copyBtn').textContent = '✅';
-      setTimeout(function() { document.getElementById('copyBtn').textContent = '📋'; }, 2000);
+      btn.textContent = '✅'; setTimeout(function() { btn.textContent = '↗'; }, 2000);
     }
   }
 
@@ -1528,7 +1571,7 @@ html, body {
     document.getElementById('emptyState').style.display = 'flex';
     document.getElementById('interim').style.display = 'none';
     document.getElementById('errorBox').style.display = 'none';
-    document.getElementById('copyBtn').classList.remove('active');
+    document.getElementById('shareContentBtn').classList.remove('active');
     document.getElementById('summaryPlaceholder').style.display = 'none';
     document.getElementById('saveTranscriptBtn').textContent = '💾 Save Transcript';
     document.getElementById('summarizeBtn').style.display = '';

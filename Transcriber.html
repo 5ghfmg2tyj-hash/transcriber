@@ -634,7 +634,10 @@ html, body {
     <div id="detailHeader">
       <button id="detailBackBtn" onclick="closeDetail()">← Back</button>
       <span id="detailTitle"></span>
-      <button id="detailDeleteBtn">🗑</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button id="detailShareBtn" onclick="shareFromDetail()" style="background:none;border:none;color:var(--accent);font-size:20px;cursor:pointer;padding:4px">↗</button>
+        <button id="detailDeleteBtn">🗑</button>
+      </div>
     </div>
     <div id="detailTabs">
       <button class="dtab active" onclick="switchDetailTab('transcript')">Transcript</button>
@@ -688,7 +691,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.0.7';
+  const APP_VERSION = '1.0.8';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -1530,6 +1533,42 @@ html, body {
     const text = buildShareText();
     const btn = document.getElementById('shareContentBtn');
 
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Meeting Transcript', text: text });
+      } catch(e) {
+        if (e.name !== 'AbortError') fallbackCopy(text, btn);
+      }
+    } else {
+      fallbackCopy(text, btn);
+    }
+  }
+
+  async function shareFromDetail() {
+    const all = loadRecordings();
+    const rec = all.find(function(r) { return r.id === detailRecordingId; });
+    if (!rec) return;
+
+    const date = new Date(rec.id).toLocaleString();
+    const duration = formatTime(rec.duration || 0);
+    let text = '📋 MEETING TRANSCRIPT\n' + date + ' · ' + duration + '\n' + '─'.repeat(40) + '\n\n';
+    text += rec.segments.map(function(s) { return '[' + s.time + '] ' + s.speaker + ': ' + s.text; }).join('\n');
+
+    if (rec.summary) {
+      const s = rec.summary;
+      text += '\n\n' + '─'.repeat(40) + '\n✦ MEETING SUMMARY\n\n';
+      if (s.overview) text += 'Overview:\n' + s.overview + '\n';
+      if (s.decisions && s.decisions.length)
+        text += '\nDecisions:\n' + s.decisions.map(function(d) { return '• ' + d; }).join('\n') + '\n';
+      if (s.action_items && s.action_items.length)
+        text += '\nAction Items:\n' + s.action_items.map(function(a) {
+          return '□ ' + a.task + (a.owner ? ' — ' + a.owner : '');
+        }).join('\n') + '\n';
+      if (s.topics && s.topics.length)
+        text += '\nTopics: ' + s.topics.join(', ') + '\n';
+    }
+
+    const btn = document.getElementById('detailShareBtn');
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Meeting Transcript', text: text });

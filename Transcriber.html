@@ -382,7 +382,15 @@ html, body {
   background: none; border: none; color: var(--accent); font-size: 15px;
   font-weight: 600; cursor: pointer; padding: 4px 0; font-family: -apple-system, sans-serif;
 }
+#detailTitleWrap { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+#detailName { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+#detailDate { font-size: 11px; color: var(--muted); margin-top: 1px; }
 #detailTitle { font-size: 14px; font-weight: 600; color: var(--muted); }
+#renameInput {
+  font-size: 14px; font-weight: 700; color: var(--text); background: rgba(99,102,241,0.08);
+  border: 1px solid var(--accent); border-radius: 8px; padding: 4px 10px;
+  outline: none; font-family: -apple-system, sans-serif; width: 160px; text-align: center;
+}
 #detailDeleteBtn { background: none; border: none; color: var(--red); font-size: 20px; cursor: pointer; }
 #detailTabs {
   display: flex; border-bottom: 1px solid var(--border);
@@ -633,7 +641,10 @@ html, body {
   <div id="detailPanel">
     <div id="detailHeader">
       <button id="detailBackBtn" onclick="closeDetail()">← Back</button>
-      <span id="detailTitle"></span>
+      <div id="detailTitleWrap" onclick="startRenameDetail()">
+        <div id="detailName"></div>
+        <div id="detailDate"></div>
+      </div>
       <div style="display:flex;align-items:center;gap:8px">
         <button id="detailShareBtn" onclick="shareFromDetail()" style="background:none;border:none;color:var(--accent);font-size:20px;cursor:pointer;padding:4px">↗</button>
         <button id="detailDeleteBtn">🗑</button>
@@ -691,7 +702,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.0.8';
+  const APP_VERSION = '1.0.9';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -1645,11 +1656,14 @@ html, body {
     }
     container.innerHTML = all.map(function(rec) {
       const hasSummary = rec.summary && rec.summary.overview;
+      const displayName = rec.name || formatDate(rec.date);
+      const showDate = !!rec.name;
       return (
         '<div class="hist-item" onclick="openDetail(' + rec.id + ')">' +
           '<div class="hist-item-icon">' + (hasSummary ? '✦' : '🎙') + '</div>' +
           '<div class="hist-item-body">' +
-            '<div class="hist-item-date">' + formatDate(rec.date) + '</div>' +
+            '<div class="hist-item-date">' + displayName + '</div>' +
+            (showDate ? '<div style="font-size:11px;color:var(--muted);margin-top:1px">' + formatDate(rec.date) + '</div>' : '') +
             '<div class="hist-item-meta">' + formatTime(rec.duration) + ' · ' + rec.segments.length + ' segments' +
               (hasSummary ? ' · Summarized' : '') + '</div>' +
           '</div>' +
@@ -1680,13 +1694,41 @@ html, body {
     const rec = all.find(function(r) { return r.id === id; });
     if (!rec) return;
     detailRecordingId = id;
-    document.getElementById('detailTitle').textContent = formatDate(rec.date);
+    updateDetailTitle(rec);
     document.getElementById('detailDeleteBtn').onclick = function() {
       if (!confirm('Delete this recording?')) return;
       deleteRecording(id); closeDetail(); renderHistoryList();
     };
     switchDetailTab('transcript');
     document.getElementById('detailPanel').classList.add('open');
+  }
+
+  function updateDetailTitle(rec) {
+    document.getElementById('detailName').textContent = rec.name || formatDate(rec.date);
+    document.getElementById('detailDate').textContent = rec.name ? formatDate(rec.date) : '';
+  }
+
+  function startRenameDetail() {
+    const all = loadRecordings();
+    const rec = all.find(function(r) { return r.id === detailRecordingId; });
+    if (!rec) return;
+    const wrap = document.getElementById('detailTitleWrap');
+    const current = rec.name || '';
+    wrap.innerHTML = '<input id="renameInput" type="text" maxlength="60" placeholder="Name this recording…" value="' +
+      current.replace(/"/g, '&quot;') + '" />';
+    const input = document.getElementById('renameInput');
+    input.focus(); input.select();
+    function save() {
+      const val = input.value.trim();
+      const all2 = loadRecordings();
+      const rec2 = all2.find(function(r) { return r.id === detailRecordingId; });
+      if (rec2) { rec2.name = val; saveRecording(rec2); }
+      wrap.innerHTML = '<div id="detailName"></div><div id="detailDate"></div>';
+      updateDetailTitle(rec2 || rec);
+      renderHistoryList();
+    }
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { input.blur(); } });
   }
 
   function closeDetail() {

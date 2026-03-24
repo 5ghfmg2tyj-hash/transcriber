@@ -85,10 +85,10 @@ html, body {
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header-right { display: flex; align-items: center; gap: 8px; }
 .app-icon {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  width: 36px; height: 36px; border-radius: 10px; overflow: hidden;
+  flex-shrink: 0;
 }
+.app-icon img { width: 100%; height: 100%; display: block; }
 .app-title { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
 .app-status { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; margin-top: 1px; }
 .rec-dot {
@@ -507,6 +507,30 @@ html, body {
 @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
 @keyframes fadeUp { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
 @keyframes spin { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
+/* ── Backup setup modal ───────────────────────────────────────────── */
+#backupModal {
+  display: none; position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.85); backdrop-filter: blur(6px);
+  align-items: center; justify-content: center; padding: 24px;
+}
+#backupModal.open { display: flex; }
+#backupModalCard {
+  background: #13131f; border: 1px solid var(--border); border-radius: 20px;
+  padding: 32px 24px; max-width: 360px; width: 100%; text-align: center;
+}
+#backupModalCard .bm-icon { font-size: 48px; margin-bottom: 16px; }
+#backupModalCard h2 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+#backupModalCard p { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 24px; }
+#backupModalCard .bm-btn {
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  background: var(--accent); color: #fff; font-size: 16px; font-weight: 600;
+  cursor: pointer; margin-bottom: 10px;
+}
+#backupModalCard .bm-btn:active { opacity: 0.8; }
+#backupModalCard .bm-skip {
+  font-size: 12px; color: var(--muted); background: none; border: none;
+  cursor: pointer; padding: 8px; text-decoration: underline;
+}
 </style>
 </head>
 <body>
@@ -534,7 +558,7 @@ html, body {
 
   <div id="header">
     <div class="header-left">
-      <div class="app-icon">🎙</div>
+      <div class="app-icon"><img src="icon-192.png" alt="MeetingMate"></div>
       <div>
         <div class="app-title">MeetingMate</div>
         <div class="app-status" id="statusText">Ready</div>
@@ -704,7 +728,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.1.1';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -887,11 +911,12 @@ html, body {
       return;
     }
     try {
-      var handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      await saveBackupHandle(handle);
+      var parentHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      var folderHandle = await parentHandle.getDirectoryHandle('MeetingMate', { create: true });
+      await saveBackupHandle(folderHandle);
       localStorage.setItem('transcriber_auto_backup', '1');
-      // Restore any existing backup from this folder first
-      var restored = await restoreFromHandle(handle);
+      localStorage.removeItem('transcriber_backup_skipped');
+      var restored = await restoreFromHandle(folderHandle);
       await autoBackup(true);
       renderSettingsList();
       if (restored > 0) {
@@ -1337,6 +1362,38 @@ html, body {
       document.getElementById('postSaveRow').style.display = 'block';
     }
     updateRecordBtn();
+    // Require backup setup on first save if not already configured
+    if (window.showDirectoryPicker && !localStorage.getItem('transcriber_auto_backup')
+        && !localStorage.getItem('transcriber_backup_skipped')) {
+      document.getElementById('backupModal').classList.add('open');
+    }
+  }
+
+  async function backupModalSetup() {
+    try {
+      var parentHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      var folderHandle = await parentHandle.getDirectoryHandle('MeetingMate', { create: true });
+      await saveBackupHandle(folderHandle);
+      localStorage.setItem('transcriber_auto_backup', '1');
+      var restored = await restoreFromHandle(folderHandle);
+      await autoBackup(true);
+      document.getElementById('backupModal').classList.remove('open');
+      renderSettingsList();
+      if (restored > 0) {
+        renderHistoryList();
+        showToast('Restored ' + restored + ' recording' + (restored === 1 ? '' : 's') + ' ✓');
+      } else {
+        showToast('Backup folder set up ✓');
+      }
+    } catch(e) {
+      if (e.name !== 'AbortError') showToast('Could not set backup folder', true);
+    }
+  }
+
+  function backupModalSkip() {
+    localStorage.setItem('transcriber_backup_skipped', '1');
+    document.getElementById('backupModal').classList.remove('open');
+    showToast('Backup skipped — set up anytime in ⚙️ Settings');
   }
 
   async function summarizeAndSave() {
@@ -1878,6 +1935,18 @@ html, body {
     }
   }
 </script>
+
+<!-- Backup setup modal -->
+<div id="backupModal">
+  <div id="backupModalCard">
+    <div class="bm-icon">🗂️</div>
+    <h2>Set Up Your Backup</h2>
+    <p>Choose a location and MeetingMate will create a <strong>MeetingMate</strong> folder there automatically. Your recordings will be saved after every session — and restored if you ever reinstall.</p>
+    <button class="bm-btn" onclick="backupModalSetup()">Choose Folder →</button>
+    <br>
+    <button class="bm-skip" onclick="backupModalSkip()">Skip for now (not recommended)</button>
+  </div>
+</div>
 
 </body>
 </html>

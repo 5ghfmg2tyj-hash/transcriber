@@ -95,16 +95,32 @@ html, body {
   width: 6px; height: 6px; border-radius: 50%; background: var(--red);
   display: inline-block; animation: pulse 1s infinite;
 }
-#historyBtn, #settingsBtn {
+#menuBtn {
   background: var(--surface); border: 1px solid var(--border); color: var(--text);
-  width: 36px; height: 36px; border-radius: 10px; font-size: 17px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 12px; font-size: 18px;
+  cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; flex-shrink: 0;
 }
-#resetBtn {
-  background: var(--surface); border: none; color: var(--muted);
-  padding: 6px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
-  display: none; font-family: -apple-system, sans-serif;
+#menuBtn .bar { width: 16px; height: 2px; background: var(--text); border-radius: 2px; transition: opacity 0.2s; }
+#menuDropdown {
+  display: none; position: absolute; top: calc(100% + 6px); right: 16px;
+  background: #1a1a2e; border: 1px solid var(--border); border-radius: 16px;
+  overflow: hidden; min-width: 200px; z-index: 100;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
 }
+#menuDropdown.open { display: block; }
+.menu-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 15px 18px; cursor: pointer; color: var(--text);
+  font-size: 15px; font-weight: 500; background: none; border: none;
+  width: 100%; text-align: left; font-family: -apple-system, sans-serif;
+  border-bottom: 1px solid var(--border);
+}
+.menu-item:last-child { border-bottom: none; }
+.menu-item:active { background: var(--surface); }
+.menu-item-icon { font-size: 18px; width: 24px; text-align: center; }
+.menu-item-danger { color: #f87171; }
+#resetBtn { display: none; }
 
 /* Tabs */
 #tabs { display: none; position: relative; z-index: 10; border-bottom: 1px solid var(--border); background: rgba(9,9,15,0.85); }
@@ -564,11 +580,26 @@ html, body {
         <div class="app-status" id="statusText">Ready</div>
       </div>
     </div>
-    <div class="header-right">
-      <button id="shareBtn" onclick="openShare()" title="Share App" style="background:var(--surface);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;">📤</button>
-      <button id="settingsBtn" onclick="openSettings()" title="AI Settings">⚙️</button>
-      <button id="historyBtn" onclick="openHistory()" title="Recordings">🕐</button>
-      <button id="resetBtn" onclick="resetAll()">Reset</button>
+    <div class="header-right" style="position:relative;">
+      <button id="menuBtn" onclick="toggleMenu()" aria-label="Menu">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+      </button>
+      <div id="menuDropdown">
+        <button class="menu-item" onclick="openHistory();closeMenu()">
+          <span class="menu-item-icon">🕐</span> Recordings
+        </button>
+        <button class="menu-item" onclick="openSettings();closeMenu()">
+          <span class="menu-item-icon">⚙️</span> AI Settings
+        </button>
+        <button class="menu-item" onclick="openShare();closeMenu()">
+          <span class="menu-item-icon">📤</span> Share App / QR Code
+        </button>
+        <button id="resetBtn" class="menu-item menu-item-danger" onclick="resetAll();closeMenu()">
+          <span class="menu-item-icon">🔄</span> Reset Current Recording
+        </button>
+      </div>
     </div>
   </div>
 
@@ -728,7 +759,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.1.1';
+  const APP_VERSION = '1.1.2';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -1232,7 +1263,7 @@ html, body {
       document.getElementById('tabs').style.display = 'flex';
       document.getElementById('emptyState').style.display = 'none';
       document.getElementById('shareContentBtn').classList.add('active');
-      document.getElementById('resetBtn').style.display = 'block';
+      document.getElementById('resetBtn').style.display = 'flex';
     }
     document.getElementById('content').scrollTop = document.getElementById('content').scrollHeight;
   }
@@ -1904,6 +1935,19 @@ html, body {
 
   // ── Share / QR ─────────────────────────────────────────────────────────────
   var APP_URL = 'https://5ghfmg2tyj-hash.github.io/transcriber/Transcriber.html';
+
+  function toggleMenu() {
+    var d = document.getElementById('menuDropdown');
+    d.classList.toggle('open');
+    if (d.classList.contains('open')) {
+      setTimeout(function() { document.addEventListener('click', closeMenuOutside, { once: true }); }, 0);
+    }
+  }
+  function closeMenu() { document.getElementById('menuDropdown').classList.remove('open'); }
+  function closeMenuOutside(e) {
+    if (!document.getElementById('menuDropdown').contains(e.target) &&
+        e.target.id !== 'menuBtn') closeMenu();
+  }
 
   function openShare() {
     var qr = document.getElementById('qrImg');

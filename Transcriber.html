@@ -85,10 +85,10 @@ html, body {
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header-right { display: flex; align-items: center; gap: 8px; }
 .app-icon {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  width: 36px; height: 36px; border-radius: 10px; overflow: hidden;
+  flex-shrink: 0;
 }
+.app-icon img { width: 100%; height: 100%; display: block; }
 .app-title { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
 .app-status { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; margin-top: 1px; }
 .rec-dot {
@@ -558,7 +558,7 @@ html, body {
 
   <div id="header">
     <div class="header-left">
-      <div class="app-icon">🎙</div>
+      <div class="app-icon"><img src="icon-192.png" alt="MeetingMate"></div>
       <div>
         <div class="app-title">MeetingMate</div>
         <div class="app-status" id="statusText">Ready</div>

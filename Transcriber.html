@@ -537,6 +537,49 @@ html, body {
   background: none; color: var(--muted); font-size: 13px;
   cursor: pointer; font-family: -apple-system, sans-serif;
 }
+/* Step visual mockups */
+.step-visual { margin-top: 10px; }
+.sv-bar {
+  display: flex; align-items: center; gap: 6px;
+  background: #1e1e2e; border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 12px;
+}
+.sv-bar-item { font-size: 14px; color: var(--muted); position: relative; }
+.sv-url { flex: 1; font-size: 11px; background: rgba(255,255,255,0.06); border-radius: 6px; padding: 3px 8px; text-align: center; }
+.sv-sheet {
+  background: #1e1e2e; border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
+.sv-sheet-row {
+  padding: 9px 14px; font-size: 13px; color: var(--muted);
+  border-bottom: 1px solid var(--border); position: relative;
+}
+.sv-sheet-row:last-child { border-bottom: none; }
+.sv-dialog {
+  background: #1e1e2e; border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.sv-dialog-bar {
+  width: 100%; display: flex; justify-content: space-between;
+  font-size: 13px; color: var(--muted); position: relative;
+}
+.sv-dialog-icon { font-size: 28px; }
+.sv-dialog-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.sv-highlight {
+  color: #60a5fa; font-weight: 700; position: relative;
+  background: rgba(96,165,250,0.12); border-radius: 6px;
+  padding: 2px 8px;
+}
+.sv-tap {
+  position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+  background: #60a5fa; color: #000; font-size: 9px; font-weight: 800;
+  padding: 2px 6px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.5px;
+}
+.sv-tap::after {
+  content: ''; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+  border: 4px solid transparent; border-top-color: #60a5fa; border-bottom: none;
+}
 
 /* Usage card */
 .usage-grid {
@@ -829,7 +872,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.1.5';
+  const APP_VERSION = '1.1.6';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -2023,37 +2066,108 @@ html, body {
     var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
     var isAndroid = /Android/.test(ua);
 
-    var steps;
+    var html;
     if (isIOS) {
-      steps = [
-        { icon: '⬇️', title: 'Open in Safari', desc: 'Make sure you\'re viewing this page in Safari (not Chrome or another browser).' },
-        { icon: '⬆️', title: 'Tap the Share button', desc: 'Tap the Share icon (box with an arrow) at the bottom of your screen.' },
-        { icon: '➕', title: 'Tap "Add to Home Screen"', desc: 'Scroll down in the share sheet and tap "Add to Home Screen", then tap "Add".' }
-      ];
-    } else if (isAndroid) {
-      steps = [
-        { icon: '🌐', title: 'Open in Chrome', desc: 'Make sure you\'re viewing this page in Chrome for the best experience.' },
-        { icon: '⋮', title: 'Tap the menu', desc: 'Tap the three-dot menu (⋮) in the top right corner of Chrome.' },
-        { icon: '➕', title: 'Tap "Add to Home screen"', desc: 'Tap "Add to Home screen" or "Install app", then confirm.' }
-      ];
-    } else {
-      steps = [
-        { icon: '🌐', title: 'Open in your mobile browser', desc: 'Visit this page on your iPhone or Android phone.' },
-        { icon: '📤', title: 'Use the browser menu', desc: 'On iPhone Safari: tap Share → "Add to Home Screen". On Android Chrome: tap ⋮ → "Add to Home screen".' },
-        { icon: '✅', title: 'Launch from your home screen', desc: 'MeetingMate will open as a full-screen app with no browser chrome.' }
-      ];
-    }
-
-    var html = steps.map(function(s, i) {
-      return '<div class="install-step">' +
-        '<div class="step-num">' + (i + 1) + '</div>' +
-        '<div class="step-body">' +
-          '<div class="step-title">' + s.title + '</div>' +
-          '<div class="step-desc">' + s.desc + '</div>' +
+      html =
+        // Step 1 — tap Share icon in Safari bottom bar
+        '<div class="install-step">' +
+          '<div class="step-num">1</div>' +
+          '<div class="step-body">' +
+            '<div class="step-title">Tap the Share button</div>' +
+            '<div class="step-desc">At the bottom of Safari</div>' +
+            '<div class="step-visual">' +
+              '<div class="sv-bar">' +
+                '<div class="sv-bar-item">◀</div>' +
+                '<div class="sv-bar-item">▶</div>' +
+                '<div class="sv-bar-item sv-highlight">⬆&#xFE0E;<div class="sv-tap">TAP</div></div>' +
+                '<div class="sv-bar-item">⧉</div>' +
+                '<div class="sv-bar-item">⋯</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
-        '<div class="step-icon">' + s.icon + '</div>' +
-      '</div>';
-    }).join('');
+        // Step 2 — tap Add to Home Screen in share sheet
+        '<div class="install-step">' +
+          '<div class="step-num">2</div>' +
+          '<div class="step-body">' +
+            '<div class="step-title">Tap "Add to Home Screen"</div>' +
+            '<div class="step-desc">Scroll down in the share sheet</div>' +
+            '<div class="step-visual">' +
+              '<div class="sv-sheet">' +
+                '<div class="sv-sheet-row">Copy</div>' +
+                '<div class="sv-sheet-row sv-highlight">Add to Home Screen<div class="sv-tap">TAP</div></div>' +
+                '<div class="sv-sheet-row">Add Bookmark</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        // Step 3 — tap Add
+        '<div class="install-step">' +
+          '<div class="step-num">3</div>' +
+          '<div class="step-body">' +
+            '<div class="step-title">Tap "Add"</div>' +
+            '<div class="step-desc">Top right of the confirmation screen</div>' +
+            '<div class="step-visual">' +
+              '<div class="sv-dialog">' +
+                '<div class="sv-dialog-bar"><span>Cancel</span><span>Add to Home Screen</span><span class="sv-highlight">Add<div class="sv-tap">TAP</div></span></div>' +
+                '<div class="sv-dialog-icon">🎙</div>' +
+                '<div class="sv-dialog-name">MeetingMate</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    } else if (isAndroid) {
+      html =
+        // Step 1 — tap ⋮ menu
+        '<div class="install-step">' +
+          '<div class="step-num">1</div>' +
+          '<div class="step-body">' +
+            '<div class="step-title">Tap the ⋮ menu</div>' +
+            '<div class="step-desc">Top right corner of Chrome</div>' +
+            '<div class="step-visual">' +
+              '<div class="sv-bar">' +
+                '<div class="sv-bar-item sv-url">meetingmate</div>' +
+                '<div class="sv-bar-item sv-highlight">⋮<div class="sv-tap">TAP</div></div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        // Step 2 — tap Add to Home screen
+        '<div class="install-step">' +
+          '<div class="step-num">2</div>' +
+          '<div class="step-body">' +
+            '<div class="step-title">Tap "Add to Home screen"</div>' +
+            '<div class="step-desc">In the Chrome menu</div>' +
+            '<div class="step-visual">' +
+              '<div class="sv-sheet">' +
+                '<div class="sv-sheet-row">New tab</div>' +
+                '<div class="sv-sheet-row sv-highlight">Add to Home screen<div class="sv-tap">TAP</div></div>' +
+                '<div class="sv-sheet-row">Share…</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        // Step 3 — tap Add/Install
+        '<div class="install-step">' +
+          '<div class="step-num">3</div>' +
+          '<div class="step-body">' +
+            '<div class="step-title">Tap "Add"</div>' +
+            '<div class="step-desc">In the confirmation dialog</div>' +
+            '<div class="step-visual">' +
+              '<div class="sv-dialog">' +
+                '<div class="sv-dialog-icon">🎙</div>' +
+                '<div class="sv-dialog-name">MeetingMate</div>' +
+                '<div class="sv-dialog-bar" style="justify-content:flex-end;gap:16px"><span>Cancel</span><span class="sv-highlight">Add<div class="sv-tap">TAP</div></span></div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    } else {
+      html =
+        '<div class="install-step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Open on your phone</div><div class="step-desc">Visit this page in Safari (iPhone) or Chrome (Android)</div></div></div>' +
+        '<div class="install-step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Tap Share / Menu</div><div class="step-desc">iPhone: tap ⬆ at the bottom · Android: tap ⋮ top right</div></div></div>' +
+        '<div class="install-step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Tap "Add to Home Screen"</div><div class="step-desc">Then tap "Add" to confirm</div></div></div>';
+    }
 
     document.getElementById('installSteps').innerHTML = html;
     setTimeout(function() { document.getElementById('installModal').classList.add('open'); }, 800);

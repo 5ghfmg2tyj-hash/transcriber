@@ -1,6 +1,6 @@
 {
-  "name": "Meeting Transcriber",
-  "short_name": "Transcriber",
+  "name": "MeetingMate",
+  "short_name": "MeetingMate",
   "description": "Record, transcribe, and summarize meetings",
   "start_url": "./Transcriber.html",
   "display": "standalone",

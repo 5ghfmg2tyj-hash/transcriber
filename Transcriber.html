@@ -652,6 +652,9 @@ html, body {
         <button class="menu-item" onclick="openShare();closeMenu()">
           <span class="menu-item-icon">📤</span> Share App / QR Code
         </button>
+        <button id="installInstructionsBtn" class="menu-item" onclick="showInstallInstructions();closeMenu()" style="display:none">
+          <span class="menu-item-icon">📲</span> Add to Home Screen
+        </button>
         <button id="resetBtn" class="menu-item menu-item-danger" onclick="resetAll();closeMenu()">
           <span class="menu-item-icon">🔄</span> Reset Current Recording
         </button>
@@ -826,7 +829,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.1.4';
+  const APP_VERSION = '1.1.5';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -2006,6 +2009,13 @@ html, body {
   // ── Install instructions ────────────────────────────────────────────
   (function() {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    // Always show the menu item if not installed as PWA
+    if (!isStandalone) {
+      var btn = document.getElementById('installInstructionsBtn');
+      if (btn) btn.style.display = '';
+    }
+
     var dismissed = localStorage.getItem('mm_install_dismissed');
     if (isStandalone || dismissed) return;
 
@@ -2049,6 +2059,10 @@ html, body {
     setTimeout(function() { document.getElementById('installModal').classList.add('open'); }, 800);
   })();
 
+  function showInstallInstructions() {
+    localStorage.removeItem('mm_install_dismissed');
+    document.getElementById('installModal').classList.add('open');
+  }
   function dismissInstall() {
     localStorage.setItem('mm_install_dismissed', '1');
     document.getElementById('installModal').classList.remove('open');

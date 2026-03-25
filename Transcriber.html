@@ -872,7 +872,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.1.6';
+  const APP_VERSION = '1.1.7';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -1166,6 +1166,7 @@ html, body {
 
   function showApp() {
     document.getElementById('setupScreen').style.display = 'none';
+    maybeShowInstallModal();
     document.getElementById('app').style.display = 'flex';
     updateSummarizeButtons();
   }
@@ -2050,17 +2051,21 @@ html, body {
   var APP_URL = 'https://5ghfmg2tyj-hash.github.io/transcriber/Transcriber.html';
 
   // ── Install instructions ────────────────────────────────────────────
-  (function() {
-    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
-    // Always show the menu item if not installed as PWA
-    if (!isStandalone) {
-      var btn = document.getElementById('installInstructionsBtn');
-      if (btn) btn.style.display = '';
-    }
+  // Always show the menu item if not installed as PWA
+  if (!isStandalone) {
+    var btn = document.getElementById('installInstructionsBtn');
+    if (btn) btn.style.display = '';
+  }
 
+  function maybeShowInstallModal() {
     var dismissed = localStorage.getItem('mm_install_dismissed');
     if (isStandalone || dismissed) return;
+    setTimeout(function() { buildAndShowInstallModal(); }, 800);
+  }
+
+  function buildAndShowInstallModal() {
 
     var ua = navigator.userAgent;
     var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
@@ -2170,12 +2175,12 @@ html, body {
     }
 
     document.getElementById('installSteps').innerHTML = html;
-    setTimeout(function() { document.getElementById('installModal').classList.add('open'); }, 800);
-  })();
+    document.getElementById('installModal').classList.add('open');
+  }
 
   function showInstallInstructions() {
     localStorage.removeItem('mm_install_dismissed');
-    document.getElementById('installModal').classList.add('open');
+    buildAndShowInstallModal();
   }
   function dismissInstall() {
     localStorage.setItem('mm_install_dismissed', '1');

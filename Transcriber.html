@@ -872,7 +872,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.1.7';
+  const APP_VERSION = '1.1.8';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -2069,12 +2069,15 @@ html, body {
 
     var ua = navigator.userAgent;
     var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    var isIOSChrome = isIOS && /CriOS/.test(ua);
     var isAndroid = /Android/.test(ua);
 
+    var appIconImg = '<img src="icon-192.png" alt="MeetingMate" style="width:36px;height:36px;border-radius:8px;">';
+
     var html;
-    if (isIOS) {
+    if (isIOS && !isIOSChrome) {
+      // Safari on iOS
       html =
-        // Step 1 — tap Share icon in Safari bottom bar
         '<div class="install-step">' +
           '<div class="step-num">1</div>' +
           '<div class="step-body">' +
@@ -2091,7 +2094,6 @@ html, body {
             '</div>' +
           '</div>' +
         '</div>' +
-        // Step 2 — tap Add to Home Screen in share sheet
         '<div class="install-step">' +
           '<div class="step-num">2</div>' +
           '<div class="step-body">' +
@@ -2106,7 +2108,6 @@ html, body {
             '</div>' +
           '</div>' +
         '</div>' +
-        // Step 3 — tap Add
         '<div class="install-step">' +
           '<div class="step-num">3</div>' +
           '<div class="step-body">' +
@@ -2115,7 +2116,54 @@ html, body {
             '<div class="step-visual">' +
               '<div class="sv-dialog">' +
                 '<div class="sv-dialog-bar"><span>Cancel</span><span>Add to Home Screen</span><span class="sv-highlight">Add<div class="sv-tap">TAP</div></span></div>' +
-                '<div class="sv-dialog-icon">🎙</div>' +
+                appIconImg +
+                '<div class="sv-dialog-name">MeetingMate</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    } else if (isIOSChrome) {
+      // Chrome on iOS
+      html =
+        '<div class="install-step">' +
+          '<div class="step-num">1</div>' +
+          '<div class="step-body">' +
+            '<div class="step-title">Tap the Share button</div>' +
+            '<div class="step-desc">At the bottom of Chrome</div>' +
+            '<div class="step-visual">' +
+              '<div class="sv-bar">' +
+                '<div class="sv-bar-item">◀</div>' +
+                '<div class="sv-bar-item">▶</div>' +
+                '<div class="sv-bar-item sv-highlight">⬆&#xFE0E;<div class="sv-tap">TAP</div></div>' +
+                '<div class="sv-bar-item">⧉</div>' +
+                '<div class="sv-bar-item">⋮</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="install-step">' +
+          '<div class="step-num">2</div>' +
+          '<div class="step-body">' +
+            '<div class="step-title">Tap "Add to Home Screen"</div>' +
+            '<div class="step-desc">Scroll down in the share sheet</div>' +
+            '<div class="step-visual">' +
+              '<div class="sv-sheet">' +
+                '<div class="sv-sheet-row">Copy</div>' +
+                '<div class="sv-sheet-row sv-highlight">Add to Home Screen<div class="sv-tap">TAP</div></div>' +
+                '<div class="sv-sheet-row">Open in Safari</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="install-step">' +
+          '<div class="step-num">3</div>' +
+          '<div class="step-body">' +
+            '<div class="step-title">Tap "Add"</div>' +
+            '<div class="step-desc">Top right of the confirmation screen</div>' +
+            '<div class="step-visual">' +
+              '<div class="sv-dialog">' +
+                '<div class="sv-dialog-bar"><span>Cancel</span><span>Add to Home Screen</span><span class="sv-highlight">Add<div class="sv-tap">TAP</div></span></div>' +
+                appIconImg +
                 '<div class="sv-dialog-name">MeetingMate</div>' +
               '</div>' +
             '</div>' +
@@ -2160,7 +2208,7 @@ html, body {
             '<div class="step-desc">In the confirmation dialog</div>' +
             '<div class="step-visual">' +
               '<div class="sv-dialog">' +
-                '<div class="sv-dialog-icon">🎙</div>' +
+                appIconImg +
                 '<div class="sv-dialog-name">MeetingMate</div>' +
                 '<div class="sv-dialog-bar" style="justify-content:flex-end;gap:16px"><span>Cancel</span><span class="sv-highlight">Add<div class="sv-tap">TAP</div></span></div>' +
               '</div>' +
@@ -2253,7 +2301,7 @@ html, body {
 <div id="installModal">
   <div id="installCard">
     <div class="ic-handle"></div>
-    <h2>📲 Add to Your Home Screen</h2>
+    <h2>📲 Install MeetingMate App</h2>
     <p class="ic-sub">MeetingMate works best as an installed app — no App Store needed. It takes 3 taps.</p>
     <div class="install-steps" id="installSteps"></div>
     <button id="installDoneBtn" onclick="dismissInstall()">Got it!</button>

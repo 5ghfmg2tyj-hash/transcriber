@@ -504,8 +504,19 @@ html, body {
 #installCard {
   background: #13131f; border: 1px solid var(--border);
   border-radius: 24px 24px 0 0; width: 100%; max-width: 480px;
-  padding: 0 24px; padding-bottom: max(env(safe-area-inset-bottom), 28px);
+  max-height: 88dvh; display: flex; flex-direction: column;
   animation: slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+#installCardHeader {
+  padding: 0 24px; flex-shrink: 0;
+}
+#installCardScroll {
+  overflow-y: auto; flex: 1; padding: 0 24px;
+  -webkit-overflow-scrolling: touch;
+}
+#installCardFooter {
+  padding: 0 24px; padding-bottom: max(env(safe-area-inset-bottom), 28px);
+  flex-shrink: 0;
 }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 #installCard .ic-handle { width: 36px; height: 4px; background: var(--muted); border-radius: 2px; margin: 12px auto 20px; }
@@ -872,7 +883,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.1.8';
+  const APP_VERSION = '1.1.9';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -2300,12 +2311,18 @@ html, body {
 <!-- Install instructions modal -->
 <div id="installModal">
   <div id="installCard">
-    <div class="ic-handle"></div>
-    <h2>📲 Install MeetingMate App</h2>
-    <p class="ic-sub">MeetingMate works best as an installed app — no App Store needed. It takes 3 taps.</p>
-    <div class="install-steps" id="installSteps"></div>
-    <button id="installDoneBtn" onclick="dismissInstall()">Got it!</button>
-    <button id="installLaterBtn" onclick="dismissInstallLater()">Maybe later</button>
+    <div id="installCardHeader">
+      <div class="ic-handle"></div>
+      <h2>📲 Install MeetingMate App</h2>
+      <p class="ic-sub">No App Store needed — it takes 3 taps.</p>
+    </div>
+    <div id="installCardScroll">
+      <div class="install-steps" id="installSteps"></div>
+    </div>
+    <div id="installCardFooter">
+      <button id="installDoneBtn" onclick="dismissInstall()">Got it!</button>
+      <button id="installLaterBtn" onclick="dismissInstallLater()">Maybe later</button>
+    </div>
   </div>
 </div>
 

@@ -883,7 +883,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.2.1';
+  const APP_VERSION = '1.2.2';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -1468,7 +1468,7 @@ html, body {
   }
 
   function stopRecording() {
-    if (recognition) { try { recognition.stop(); } catch(e) {} }
+    if (recognition) { try { recognition.abort(); } catch(e) {} }
     clearInterval(timerInterval);
     disableWakeLock();
     if (finalBuffer.trim()) { addSegment(finalBuffer.trim(), formatTime(elapsed)); finalBuffer = ''; }

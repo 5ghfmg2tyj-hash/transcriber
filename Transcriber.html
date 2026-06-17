@@ -883,7 +883,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.2.3';
+  const APP_VERSION = '1.2.4';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -1642,6 +1642,22 @@ html, body {
     return ((input / 1e6) * pr.input) + ((output / 1e6) * pr.output);
   }
 
+  function parseJSON(raw) {
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    try { return JSON.parse(cleaned); } catch(e) {}
+    // Try to recover a truncated JSON object by closing open structures
+    let s = cleaned;
+    const opens = (s.match(/{/g) || []).length - (s.match(/}/g) || []).length;
+    const openArr = (s.match(/\[/g) || []).length - (s.match(/\]/g) || []).length;
+    // Close any open string (trailing unterminated quote)
+    if ((s.split('"').length - 1) % 2 !== 0) s += '"';
+    for (let i = 0; i < openArr; i++) s += ']';
+    for (let i = 0; i < opens; i++) s += '}';
+    try { return JSON.parse(s); } catch(e2) {
+      throw new Error('Could not parse summary response — try again');
+    }
+  }
+
   async function callAnthropicAPI(text, prov, key) {
     const res = await fetch(prov.endpoint, {
       method: 'POST',
@@ -1653,14 +1669,14 @@ html, body {
       },
       body: JSON.stringify({
         model: prov.modelId,
-        max_tokens: 1500,
+        max_tokens: 4096,
         messages: [{ role: 'user', content: SUMMARY_PROMPT + text }]
       })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
     const raw = (data.content || []).find(function(b) { return b.type === 'text'; });
-    const summary = JSON.parse((raw ? raw.text : '{}').replace(/```json|```/g, '').trim());
+    const summary = parseJSON(raw ? raw.text : '{}');
     const usage = { input: (data.usage && data.usage.input_tokens) || 0, output: (data.usage && data.usage.output_tokens) || 0 };
     return { summary: summary, usage: usage };
   }
@@ -1674,13 +1690,14 @@ html, body {
       },
       body: JSON.stringify({
         model: prov.modelId,
+        max_tokens: 4096,
         messages: [{ role: 'user', content: SUMMARY_PROMPT + text }]
       })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     const raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    const summary = JSON.parse((raw || '{}').replace(/```json|```/g, '').trim());
+    const summary = parseJSON(raw || '{}');
     const usage = { input: (data.usage && (data.usage.prompt_tokens || data.usage.input_tokens)) || 0, output: (data.usage && (data.usage.completion_tokens || data.usage.output_tokens)) || 0 };
     return { summary: summary, usage: usage };
   }

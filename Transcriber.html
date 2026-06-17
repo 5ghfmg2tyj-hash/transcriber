@@ -356,6 +356,19 @@ html, body {
 }
 .provider-name { font-size: 15px; font-weight: 700; }
 .provider-model { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.model-picker-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 6px; }
+.model-picker { display: flex; gap: 6px; }
+.model-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 4px; border-radius: 10px; border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03); cursor: pointer;
+  font-family: -apple-system, sans-serif; transition: all 0.15s;
+}
+.model-btn-active {
+  border-color: var(--accent); background: rgba(99,102,241,0.12);
+}
+.model-btn-name { font-size: 12px; font-weight: 700; color: var(--text); }
+.model-btn-desc { font-size: 10px; color: var(--muted); }
 .provider-active-badge {
   margin-left: auto; background: rgba(99,102,241,0.15); color: var(--accent);
   font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
@@ -844,6 +857,12 @@ html, body {
 
 <script>
   // ── Providers ──────────────────────────────────────────────────────────────
+  const ANTHROPIC_MODELS = [
+    { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', desc: 'Fastest · cheapest', pricing: { input: 0.80, output: 4.00 } },
+    { id: 'claude-sonnet-4-6',         label: 'Sonnet 4.6', desc: 'Balanced',           pricing: { input: 3.00, output: 15.00 } },
+    { id: 'claude-opus-4-8',           label: 'Opus 4.8',   desc: 'Most capable',       pricing: { input: 15.00, output: 75.00 } },
+  ];
+
   const PROVIDERS = {
     anthropic: {
       label: 'Anthropic',
@@ -854,7 +873,7 @@ html, body {
       endpoint: 'https://api.anthropic.com/v1/messages',
       type: 'anthropic',
       validate: function(k) { return k.startsWith('sk-ant-'); },
-      pricing: { input: 3.00, output: 15.00 },   // $ per 1M tokens
+      pricing: { input: 3.00, output: 15.00 },
       billingUrl: 'https://console.anthropic.com/settings/plans'
     },
     openai: {
@@ -883,13 +902,14 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.2.3';
+  const APP_VERSION = '1.2.5';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
   // ── State ──────────────────────────────────────────────────────────────────
   let providerKeys = { anthropic: '', openai: '', perplexity: '' };
   let activeProvider = 'anthropic';
+  let anthropicModel = 'claude-sonnet-4-6';
   let setupProvider = 'anthropic';
   let phase = 'idle'; // idle | recording | stopped | summarizing
   let segments = [];
@@ -1265,12 +1285,33 @@ html, body {
             '<button class="provider-save-btn" onclick="saveProviderKey(\'' + p + '\')">Save</button>' +
             (hasKey ? '<button class="provider-clear-btn" onclick="clearProviderKey(\'' + p + '\')">✕</button>' : '') +
           '</div>' +
+          (p === 'anthropic' ? (
+            '<div class="model-picker-label">Model</div>' +
+            '<div class="model-picker">' +
+              ANTHROPIC_MODELS.map(function(m) {
+                var sel = (anthropicModel === m.id);
+                return '<button class="model-btn' + (sel ? ' model-btn-active' : '') + '" onclick="selectAnthropicModel(\'' + m.id + '\')">' +
+                  '<span class="model-btn-name">' + m.label + '</span>' +
+                  '<span class="model-btn-desc">' + m.desc + '</span>' +
+                '</button>';
+              }).join('') +
+            '</div>'
+          ) : '') +
           (!isActive && hasKey ? '<button class="provider-set-active-btn" onclick="setActiveProvider(\'' + p + '\')">Use ' + prov.label + ' for summaries</button>' : '') +
           usageSection +
         '</div>'
       );
     }).join('') + autoBackupCard +
     '<div style="text-align:center;padding:16px 0 4px;font-size:12px;color:var(--muted)">MeetingMate v' + APP_VERSION + '</div>';
+  }
+
+  function selectAnthropicModel(id) {
+    anthropicModel = id;
+    localStorage.setItem('transcriber_anthropic_model', id);
+    const m = ANTHROPIC_MODELS.find(function(m) { return m.id === id; });
+    if (m) { PROVIDERS.anthropic.pricing = m.pricing; PROVIDERS.anthropic.model = m.label; }
+    renderSettingsList();
+    updateSummarizeButtons();
   }
 
   function clearMasked(p) {
@@ -1642,6 +1683,22 @@ html, body {
     return ((input / 1e6) * pr.input) + ((output / 1e6) * pr.output);
   }
 
+  function parseJSON(raw) {
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    try { return JSON.parse(cleaned); } catch(e) {}
+    // Try to recover a truncated JSON object by closing open structures
+    let s = cleaned;
+    const opens = (s.match(/{/g) || []).length - (s.match(/}/g) || []).length;
+    const openArr = (s.match(/\[/g) || []).length - (s.match(/\]/g) || []).length;
+    // Close any open string (trailing unterminated quote)
+    if ((s.split('"').length - 1) % 2 !== 0) s += '"';
+    for (let i = 0; i < openArr; i++) s += ']';
+    for (let i = 0; i < opens; i++) s += '}';
+    try { return JSON.parse(s); } catch(e2) {
+      throw new Error('Could not parse summary response — try again');
+    }
+  }
+
   async function callAnthropicAPI(text, prov, key) {
     const res = await fetch(prov.endpoint, {
       method: 'POST',
@@ -1652,15 +1709,21 @@ html, body {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: prov.modelId,
-        max_tokens: 1500,
+        model: anthropicModel,
+        max_tokens: 4096,
         messages: [{ role: 'user', content: SUMMARY_PROMPT + text }]
       })
     });
+    if (!res.ok) {
+      const err = await res.json().catch(function() { return {}; });
+      const msg = (err.error && err.error.message) || res.statusText || ('HTTP ' + res.status);
+      const type = (err.error && err.error.type) ? ' [' + err.error.type + ']' : '';
+      throw new Error(res.status + type + ': ' + msg);
+    }
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    if (data.error) throw new Error((data.error.type ? '[' + data.error.type + '] ' : '') + data.error.message);
     const raw = (data.content || []).find(function(b) { return b.type === 'text'; });
-    const summary = JSON.parse((raw ? raw.text : '{}').replace(/```json|```/g, '').trim());
+    const summary = parseJSON(raw ? raw.text : '{}');
     const usage = { input: (data.usage && data.usage.input_tokens) || 0, output: (data.usage && data.usage.output_tokens) || 0 };
     return { summary: summary, usage: usage };
   }
@@ -1674,13 +1737,19 @@ html, body {
       },
       body: JSON.stringify({
         model: prov.modelId,
+        max_tokens: 4096,
         messages: [{ role: 'user', content: SUMMARY_PROMPT + text }]
       })
     });
+    if (!res.ok) {
+      const err = await res.json().catch(function() { return {}; });
+      const msg = (err.error && (err.error.message || JSON.stringify(err.error))) || res.statusText || ('HTTP ' + res.status);
+      throw new Error(res.status + ': ' + msg);
+    }
     const data = await res.json();
     if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     const raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    const summary = JSON.parse((raw || '{}').replace(/```json|```/g, '').trim());
+    const summary = parseJSON(raw || '{}');
     const usage = { input: (data.usage && (data.usage.prompt_tokens || data.usage.input_tokens)) || 0, output: (data.usage && (data.usage.completion_tokens || data.usage.output_tokens)) || 0 };
     return { summary: summary, usage: usage };
   }
@@ -2068,6 +2137,10 @@ html, body {
     } else {
       const first = Object.keys(providerKeys).find(function(p) { return !!providerKeys[p]; });
       if (first) activeProvider = first;
+    }
+    const savedModel = localStorage.getItem('transcriber_anthropic_model');
+    if (savedModel && ANTHROPIC_MODELS.find(function(m) { return m.id === savedModel; })) {
+      anthropicModel = savedModel;
     }
     if (hasAnyKey()) showApp();
     // else setup screen is shown by default

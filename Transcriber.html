@@ -848,7 +848,7 @@ html, body {
     anthropic: {
       label: 'Anthropic',
       model: 'Claude Sonnet',
-      modelId: 'claude-sonnet-4-20250514',
+      modelId: 'claude-sonnet-4-6',
       icon: '✦',
       placeholder: 'sk-ant-...',
       endpoint: 'https://api.anthropic.com/v1/messages',
@@ -883,7 +883,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.2.2';
+  const APP_VERSION = '1.2.3';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 

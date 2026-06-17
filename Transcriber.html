@@ -883,7 +883,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = '1.2.1';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -1581,7 +1581,11 @@ html, body {
       if (rec) { rec.summary = summary; saveRecording(rec); }
     } catch(e) {
       document.getElementById('summaryCards').innerHTML =
-        '<div class="sum-card"><p class="sum-text" style="color:#fca5a5">Error: ' + e.message + '</p></div>';
+        '<div class="sum-card" style="text-align:center">' +
+          '<p class="sum-text" style="color:#fca5a5;margin-bottom:14px">⚠️ ' + e.message + '</p>' +
+          '<button onclick="summarizeAndSave()" style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);color:var(--accent);padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif">↺ Try Again</button>' +
+        '</div>';
+      document.getElementById('postSaveRow').style.display = 'block';
     }
 
     document.getElementById('summaryLoading').style.display = 'none';
@@ -1971,7 +1975,13 @@ html, body {
     const bottomBar = document.getElementById('detailBottomBar');
     if (!rec) { container.innerHTML = ''; return; }
     const hasSummary = rec.summary && rec.summary.overview;
-    bottomBar.style.display = (!hasSummary && getActiveKey() && detailTab === 'summary') ? 'block' : 'none';
+    const btn = document.getElementById('detailSummarizeBtn');
+    if (getActiveKey() && detailTab === 'summary') {
+      bottomBar.style.display = 'block';
+      btn.textContent = hasSummary ? '↺ Re-summarize' : '✦ Summarize Meeting';
+    } else {
+      bottomBar.style.display = 'none';
+    }
 
     if (detailTab === 'transcript') {
       if (!rec.segments.length) {
@@ -2016,18 +2026,23 @@ html, body {
         '<div style="font-size:32px;animation:spin 2s linear infinite;display:inline-block">✦</div>' +
         '<p style="color:var(--muted);font-size:14px;margin-top:12px">Generating summary…</p></div>';
 
+    let failed = false;
     try {
       const summary = await callSummarizeAPI(text);
       rec.summary = summary;
       saveRecording(rec);
     } catch(e) {
+      failed = true;
       document.getElementById('detailContent').innerHTML =
-        '<div class="sum-card"><p class="sum-text" style="color:#fca5a5">Error: ' + e.message + '</p></div>';
+        '<div class="sum-card" style="text-align:center">' +
+          '<p class="sum-text" style="color:#fca5a5;margin-bottom:14px">⚠️ ' + e.message + '</p>' +
+          '<button onclick="summarizeFromDetail()" style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);color:var(--accent);padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif">↺ Try Again</button>' +
+        '</div>';
     }
 
-    btn.disabled = false; btn.textContent = '✦ Summarize Meeting';
-    renderDetailContent();
-    renderHistoryList();
+    btn.disabled = false;
+    btn.textContent = failed ? '↺ Re-summarize' : updateSummarizeButtons() || btn.textContent;
+    if (!failed) { renderDetailContent(); renderHistoryList(); }
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────

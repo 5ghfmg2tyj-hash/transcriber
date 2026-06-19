@@ -215,6 +215,12 @@ html, body {
 }
 #summarizeBtn:disabled { opacity: 0.6; cursor: default; }
 #postSaveRow { display: none; }
+#backupNowBtn {
+  padding: 13px 16px; border-radius: 14px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: -apple-system, sans-serif; white-space: nowrap;
+}
+#backupNowBtn:active { opacity: 0.7; }
 #postSummarizeBtn {
   width: 100%; padding: 13px;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
@@ -760,6 +766,7 @@ html, body {
     </div>
     <div id="postSaveRow">
       <button id="postSummarizeBtn" onclick="summarizeAndSave()">✦ Summarize Meeting</button>
+      <button id="backupNowBtn" onclick="backupNow()" style="display:none">☁︎ Backup</button>
     </div>
     <div class="controls-row">
       <button class="icon-btn" id="shareContentBtn" onclick="shareContent()" title="Share">↗</button>
@@ -902,7 +909,7 @@ html, body {
     }
   };
 
-  const APP_VERSION = '1.2.5';
+  const APP_VERSION = '1.2.7';
 
   const SUMMARY_PROMPT = 'Analyze this meeting transcript. Infer action item owners from who spoke or was assigned tasks. Return JSON only (no markdown):\n{"overview":"2-3 sentence summary","decisions":["..."],"action_items":[{"task":"...","owner":"..."}],"topics":["..."]}\n\nTranscript:\n';
 
@@ -1142,6 +1149,31 @@ html, body {
     } catch(e) {}
     renderSettingsList();
     showToast('Auto-backup disabled');
+  }
+
+  async function backupNow() {
+    const btn = document.getElementById('backupNowBtn');
+    if (btn) { btn.textContent = '☁︎ Saving…'; btn.disabled = true; }
+    try {
+      let handle = await loadBackupHandle();
+      if (!handle) {
+        handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await saveBackupHandle(handle);
+        localStorage.setItem('transcriber_auto_backup', '1');
+      }
+      const perm = await handle.requestPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') throw new Error('Permission denied');
+      const all = loadRecordings();
+      const data = JSON.stringify({ version: 1, exported: new Date().toISOString(), recordings: all }, null, 2);
+      const fileHandle = await handle.getFileHandle('meetingmate-backup.json', { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(data); await writable.close();
+      showToast('Backed up ✓');
+      if (btn) { btn.textContent = '✓ Backed up'; btn.disabled = false; }
+    } catch(e) {
+      if (e.name !== 'AbortError') showToast('Backup failed: ' + e.message, true);
+      if (btn) { btn.textContent = '☁︎ Backup'; btn.disabled = false; }
+    }
   }
 
   async function autoBackup(fromSetup) {
@@ -1527,10 +1559,15 @@ html, body {
       if (getActiveKey()) {
         document.getElementById('postSaveRow').style.display = 'block';
       } else {
-        // Show save row with only the save button since no API key
         saveRow.style.display = 'flex';
         document.getElementById('summarizeBtn').style.display = 'none';
         document.getElementById('saveTranscriptBtn').textContent = '✓ Saved — Record Again?';
+      }
+      var backupBtn = document.getElementById('backupNowBtn');
+      if (backupBtn && window.showDirectoryPicker) {
+        backupBtn.style.display = 'inline-block';
+        backupBtn.textContent = '☁︎ Backup';
+        backupBtn.disabled = false;
       }
     }
   }
